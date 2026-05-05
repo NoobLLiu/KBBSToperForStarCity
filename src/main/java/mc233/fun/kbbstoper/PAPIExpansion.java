@@ -79,7 +79,7 @@ public class PAPIExpansion extends PlaceholderExpansion {
 			return Option.BBS_URL.getString();
 		}
 		if (identifier.equals("pageurl")) {// 宣传贴url
-			return "https://www.klpbbs.com/thread-" + Option.BBS_URL.getString() + "-1-1.html";
+			return "https://" + Option.WEBSITE.getString() + "/thread-" + Option.BBS_URL.getString() + "-1-1.html";
 		}
 		if (identifier.equals("lastpost")) {// 上一次顶贴时间
 			Crawler crawler = new Crawler();

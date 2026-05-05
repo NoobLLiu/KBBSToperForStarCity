@@ -47,7 +47,8 @@ public enum Option {
 	REWARD_OFFDAYREWARD_ENABLE("reward.offdayreward.enable"),
 	REWARD_OFFDAYREWARD_EXTRA("reward.offdayreward.extra"),
 	REWARD_OFFDAYREWARD_OFFDAYS("reward.offdayreward.offdays"),
-	REWARD_OFFDAYREWARD_COMMANDS("reward.offdayreward.commands");
+	REWARD_OFFDAYREWARD_COMMANDS("reward.offdayreward.commands"),
+	WEBSITE("website");
 
 	private static File file;
 	private static FileConfiguration config;
