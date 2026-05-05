@@ -62,7 +62,7 @@ public class GUIManager implements Listener {
 				break;
 
 			case "open":
-				String url = "https://www.klpbbs.com/thread-"
+				String url = "https://" + Option.WEBSITE.getString() + "/thread-"
 						+ Option.BBS_URL.getString()
 						+ "-1-1.html";
 				Message.CLICKPOSTICON.getStringList().forEach(

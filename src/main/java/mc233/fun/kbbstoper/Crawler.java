@@ -27,7 +27,9 @@ public class Crawler {
 	}
 
 	public void resolveWebData() {
-		String url = "https://www.klpbbs.com/forum.php?mod=misc&action=viewthreadmod&tid=" + Option.BBS_URL.getString() + "&mobile=no";
+//		String url = "https://www.klpbbs.com/forum.php?mod=misc&action=viewthreadmod&tid=" + Option.BBS_URL.getString() + "&mobile=no";
+		// 替换域名
+		String url = "https://" + Option.WEBSITE.getString() + "/forum.php?mod=misc&action=viewthreadmod&tid=" + Option.BBS_URL.getString() + "&mobile=no";
 		Document doc = null;
 		try {
 			if (Option.PROXY_ENABLE.getBoolean()) {

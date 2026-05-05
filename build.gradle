@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'mc233'
-version = '0.0.1-Dev'
+version = '3.7.4'
 
 repositories {
     mavenCentral()
