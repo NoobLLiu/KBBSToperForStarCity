@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow'
+}
+
+configurations.all {
+    // protobuf 只在 MySQL 的 X DevAPI 里用到，本插件走标准 JDBC，不需要
+    exclude group: 'com.google.protobuf'
+}
+
+dependencies {
+    implementation project(':core')
+    compileOnly 'cn.nukkit:nukkit:1.0-SNAPSHOT'
+}
+
+processResources {
+    def props = [version: project.version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+shadowJar {
+    archiveFileName.set("KBBSToper-Nukkit-${project.version}.jar")
+
+    // Nukkit 没有 plugin.yml libraries: 那种运行时库加载机制，
+    // 所以 jsoup 与 JDBC 驱动必须打进 jar
+    relocate 'org.jsoup', 'mc233.fun.kbbstoper.libs.jsoup'
+    // 注意：JDBC 驱动不能 relocate —— DriverManager 按类名反射加载，
+    // 改包名会让 Class.forName("org.sqlite.JDBC") 失败
+
+    // ---- 瘦身 1：MySQL 驱动的 X DevAPI / X Protocol 客户端 ----
+    // 插件只走标准 JDBC(DriverManager + Connection)，X 协议(com.mysql.cj.x.*)
+    // 是 MySQL Shell 那套 RPC 客户端，约 500 个类，运行时完全用不到。
+    // 裁掉后驱动本体从 ~2.4MB 降到 ~1.4MB(压缩后)。
+    exclude 'com/mysql/cj/x/**'
+    exclude 'com/mysql/cj/xdevapi/**'
+    // 8.x 驱动里的 FIPS/证书/遥测等辅助模块，JDBC 主路径不碰
+    exclude 'com/mysql/cj/telemetry/**'
+
+    // ---- 瘦身 2：sqlite-jdbc 的原生库只留服务器会用到的平台 ----
+    // 每个平台的 .so/.dll 约 1MB 且已是二进制无法再压缩。
+    // 保留: Linux x86_64 / aarch64(云服务器与 ARM 机器)、Windows x86_64 / aarch64
+    // 剔除: Mac、Musl(Alpine)、FreeBSD、32 位、Android、ppc64、riscv
+    exclude 'org/sqlite/native/FreeBSD/**'
+    exclude 'org/sqlite/native/Linux-Android/**'
+    exclude 'org/sqlite/native/Linux-Musl/**'
+    exclude 'org/sqlite/native/Linux/arm/**'
+    exclude 'org/sqlite/native/Linux/armv6/**'
+    exclude 'org/sqlite/native/Linux/armv7/**'
+    exclude 'org/sqlite/native/Linux/ppc64/**'
+    exclude 'org/sqlite/native/Linux/riscv64/**'
+    exclude 'org/sqlite/native/Linux/x86/**'
+    exclude 'org/sqlite/native/Windows/armv7/**'
+    exclude 'org/sqlite/native/Windows/x86/**'
+    exclude 'org/sqlite/native/Mac/**'
+
+    // 一堆库的元数据，运行时不需要
+    exclude 'META-INF/maven/**'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+build.dependsOn shadowJar

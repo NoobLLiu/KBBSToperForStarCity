@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow'
+}
+
+dependencies {
+    implementation project(':core')
+    compileOnly 'io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT'
+    compileOnly 'me.clip:placeholderapi:2.11.5'
+}
+
+processResources {
+    def props = [version: project.version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+shadowJar {
+    archiveFileName.set("KBBSToper-Bukkit-${project.version}.jar")
+    // Bukkit 端由 plugin.yml 的 libraries: 在运行时下载 jsoup 与 JDBC 驱动，
+    // 因此这里只打自己的类，保持 jar 体积不变
+    dependencies {
+        exclude(dependency('org.jsoup:.*'))
+        exclude(dependency('org.xerial:.*'))
+        exclude(dependency('com.mysql:.*'))
+        exclude(dependency('com.google.protobuf:.*'))
+    }
+}
+
+build.dependsOn shadowJar
