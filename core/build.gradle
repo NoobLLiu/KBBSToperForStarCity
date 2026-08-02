@@ -1,0 +1,11 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    // jsoup 与 JDBC 驱动是 core 的真实运行时依赖，
+    // 由各平台模块 shade 进最终 jar（Nukkit 没有运行时库加载机制）
+    implementation 'org.jsoup:jsoup:1.17.2'
+    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    implementation 'com.mysql:mysql-connector-j:8.4.0'
+}
