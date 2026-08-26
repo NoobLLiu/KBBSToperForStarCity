@@ -81,6 +81,20 @@ public abstract class SQLer {
         }
     }
 
+    /** 清除某个论坛 ID 的全部顶帖记录(调试 clear 用)。 */
+    public void clearTopStates(String bbsname) {
+        writelock.lock();
+        String sql = String.format("DELETE FROM `%s` WHERE `bbsname`=?;", getTableName("topstates"));
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+            pstmt.setString(1, bbsname);
+            pstmt.executeUpdate();
+        } catch (Exception e) {
+            KBBSToperCore.logger().severe("清除顶帖记录失败(bbsname=" + bbsname + ")", e);
+        } finally {
+            writelock.unlock();
+        }
+    }
+
     public Poster getPoster(String uuid) {
         readlock.lock();
         String sql = String.format("SELECT * from `%s` WHERE `uuid`=?;", getTableName("posters"));

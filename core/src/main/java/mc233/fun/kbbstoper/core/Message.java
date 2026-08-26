@@ -73,6 +73,10 @@ public enum Message {
     HELP_CHECK("help.check"),
     HELP_DELETE("help.delete"),
     HELP_RELOAD("help.reload"),
+    HELP_DEBUG("help.debug"),
+    DEBUG_CLEAR("debug.clear"),
+    DEBUG_STATUS("debug.status"),
+    DEBUG_SIMULATE("debug.simulate"),
     // ---- 表单界面（Nukkit 端使用，Bukkit 端忽略） ----
     FORM_TITLE("form.title"),
     FORM_CONTENT("form.content"),

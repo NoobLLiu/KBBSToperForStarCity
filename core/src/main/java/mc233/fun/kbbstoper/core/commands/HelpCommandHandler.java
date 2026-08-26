@@ -33,6 +33,9 @@ public class HelpCommandHandler implements CommandHandler {
         if (sender.hasPermission("bbstoper.delete")) {
             sender.sendMessage(Message.PREFIX.getString() + Message.HELP_DELETE.getString());
         }
+        if (sender.hasPermission("bbstoper.debug")) {
+            sender.sendMessage(Message.PREFIX.getString() + Message.HELP_DEBUG.getString());
+        }
         if (sender.hasPermission("bbstoper.reload")) {
             sender.sendMessage(Message.PREFIX.getString() + Message.HELP_RELOAD.getString());
         }

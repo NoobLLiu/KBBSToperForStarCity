@@ -60,8 +60,18 @@ public class Crawler {
 
     /** 直接抓取一次, 不进缓存。 */
     public Crawler() {
-        resolveWebData();
-        kickExpiredData();
+        this(true);
+    }
+
+    /**
+     * @param resolve true=正常抓取论坛页面并剔除过期记录; false=不抓取, 得到空上下文。
+     *                调试用 simulate 走 false, 避免每次模拟都打一次论坛。
+     */
+    public Crawler(boolean resolve) {
+        if (resolve) {
+            resolveWebData();
+            kickExpiredData();
+        }
     }
 
     public void resolveWebData() {
@@ -215,5 +225,23 @@ public class Crawler {
 
     public static void setSQLer(SQLer sql) {
         Crawler.sql = sql;
+    }
+
+    /**
+     * 调试用: 以空上下文模拟一次"检测到该玩家顶帖", 走完整发奖逻辑(不抓取网络)。
+     * 模拟使用空上下文, 因此必然走"长期无人顶贴"分支, 附加奖励(HP+成长+星光点)会一并触发;
+     * 每日次数配额与 2h 间隔仍按真实规则判定, 方便反复测试整条奖励链路。
+     */
+    public void simulateTopPost(PlatformPlayer player) {
+        String uuid = player.getUniqueId().toString();
+        Poster poster = sql.getPoster(uuid);
+        if (poster == null) {
+            player.sendMessage(Message.PREFIX.getString() + Message.NOTBOUND.getString());
+            return;
+        }
+        String time = new SimpleDateFormat("yyyy-M-d HH:mm").format(new Date());
+        ID.add(poster.getBbsname());
+        Time.add(time);
+        processRewardForPlayer(uuid, poster, poster.getBbsname(), time, 0);
     }
 }

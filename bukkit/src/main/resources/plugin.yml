@@ -25,6 +25,7 @@ commands:
             /bt check bbsid <论坛ID> - 查看一个论坛id的绑定者
             /bt check player <玩家ID> - 查看一个玩家绑定的论坛id
             /bt delete player <玩家ID> - 删除一个玩家的数据
+            /bt debug <clear|status|simulate> - OP调试指令
             /bt reload - 重载插件
 permissions:
     bbstoper.admin:
@@ -37,6 +38,7 @@ permissions:
             bbstoper.reload: true
             bbstoper.check: true
             bbstoper.delete: true
+            bbstoper.debug: true
             bbstoper.bypassquerycooldown: true
     bbstoper.user:
         description: '用户权限.'
@@ -67,6 +69,9 @@ permissions:
         default: 'op'
     bbstoper.delete:
         description: '删除一个玩家的数据.'
+        default: 'op'
+    bbstoper.debug:
+        description: 'OP调试指令(清空/查看/模拟顶帖状态).'
         default: 'op'
     bbstoper.reload:
         description: '重载插件.'

@@ -34,6 +34,9 @@ permissions:
             bbstoper.delete:
                 description: 删除一个玩家的数据
                 default: op
+            bbstoper.debug:
+                description: OP调试指令(清空/查看/模拟顶帖状态)
+                default: op
             bbstoper.bypassquerycooldown:
                 description: 绕过查询冷却
                 default: op

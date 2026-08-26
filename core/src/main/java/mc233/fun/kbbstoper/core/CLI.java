@@ -2,6 +2,7 @@ package mc233.fun.kbbstoper.core;
 
 import mc233.fun.kbbstoper.core.commands.BindingCommandHandler;
 import mc233.fun.kbbstoper.core.commands.CheckCommandHandler;
+import mc233.fun.kbbstoper.core.commands.DebugCommandHandler;
 import mc233.fun.kbbstoper.core.commands.DeleteCommandHandler;
 import mc233.fun.kbbstoper.core.commands.HelpCommandHandler;
 import mc233.fun.kbbstoper.core.commands.ListCommandHandler;
@@ -56,6 +57,7 @@ public class CLI {
         handlers.put("top", new TopCommandHandler());
         handlers.put("check", new CheckCommandHandler());
         handlers.put("delete", new DeleteCommandHandler());
+        handlers.put("debug", new DebugCommandHandler());
         handlers.put("reload", new ReloadCommandHandler(configManager));
     }
 
