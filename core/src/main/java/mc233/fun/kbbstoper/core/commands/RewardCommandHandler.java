@@ -95,11 +95,12 @@ public class RewardCommandHandler implements CommandHandler {
                 havepost = true;
                 String today = new SimpleDateFormat("yyyy-M-dd").format(new Date());
                 if (!today.equals(poster.getRewardbefore())) {
+                    Reward.applyDailyStreakBreakIfNeeded(poster);
                     poster.setRewardbefore(today);
                     poster.setRewardtime(0);
                 }
                 if (poster.getRewardtime() < Option.REWARD_TIMES.getInt()) {
-                    new Reward(player, crawler, i).award();
+                    new Reward(player, crawler, i, poster).award();
                     sql.addTopState(poster.getBbsname(), crawler.Time.get(i));
                     poster.setRewardtime(poster.getRewardtime() + 1);
                     issucceed = true;

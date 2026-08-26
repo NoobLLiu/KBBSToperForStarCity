@@ -79,53 +79,69 @@ gui:
     - 'cancel'
     - '取消'
 
-#奖励设置
+#奖励设置（StarCity 魔改版）
 reward:
-    #自动奖励间隔，将在指定的间隔下循环访问宣传帖
-    #如有玩家顶贴就将自动给该玩家奖励，但必须该玩家在线
-    #单位秒，设置为0则关闭，此选项需要大量网络IO建议设置为30左右
+    #自动奖励间隔，循环访问宣传帖自动发奖，单位秒，0关闭
     auto: 30
     #顶贴后领取奖励的有效期, 单位天
     period: 10
-    #同一个玩家距离上次顶贴多少分钟后再次顶贴才算有效, 设置为0则一直有效
-    interval: 10
-    #一天能领取几次顶帖奖励
-    times: 1
-    #奖励的命令, %PLAYER%代表使用命令的玩家ID
-    commands:
-    - 'experience add %PLAYER% 1000'
-    - 'eco give %PLAYER% 20'
-    #激励奖励
-    #当玩家在无人顶贴超过一定时间之后顶贴, 这些奖励命令会被执行
-    incentivereward:
-        #是否启用
-        enable: false
-        #是否为额外奖励(是否还会给与普通的奖励)
-        extra: true
-        #间隔时间, 单位为分钟
-        #距离上一次有人顶贴多久之后会给与激励奖励
-        period: 30
-        #奖励命令
-        commands:
-        - 'effect give %PLAYER% haste 2'
-    #休息日奖励
-    #当玩家在设定好的休息日顶贴, 这些奖励命令会被执行
-    offdayreward:
-        #是否启用
-        enable: false
-        #是否为额外奖励(是否还会给与普通的奖励)
-        #注意: 当"休息日奖励"与"激励奖励"的"额外奖励"选项都为false时
-        #如果"休息日奖励"与"激励奖励"的条件同时满足, 将只有"休息日奖励"会被发放
-        extra: true
-        #哪些日期会应用于这项设置
-        #表示一个星期中的某一天: SUNDAY(周日), MONDAY(周一), TUESDAY(周二)
-        #WEDNESDAY(周三), THURSDAY(周四), FRIDAY(周五), SATURDAY(周六)
-        #普通日期格式为MM-dd, 例如10-01表示十月一日
-        offdays:
-        - 'SATURDAY'
-        - 'SUNDAY'
-        - '10-01'
-        - '05-01'
-        #奖励命令
-        commands:
-        - 'effect give %PLAYER% speed 2'
+    #同一个玩家距离上次顶贴多少分钟后再次顶贴才算有效, 0=一直有效
+    #设计: 每两次顶贴之间至少间隔 2 小时
+    interval: 120
+    #每日顶贴奖励总次数上限(首顶+额外), 超出仅记录不奖励
+    times: 3
+
+    # ---- 时间段(服务器本地时间, 24小时制) ----
+    #高峰期 10:00-22:00; 平峰期 22:00-10:00
+    peak:
+        start-hour: 10
+        end-hour: 22
+
+    # ---- 每日次数配额 ----
+    daily:
+        first-limit: 1   # 首顶奖励每日最多 1 次
+        extra-limit: 2   # 额外顶贴奖励每日最多 2 次
+
+    # 12 小时内全服无人顶贴 → 触发"附加顶贴奖励"
+    # 与"处于高峰期"满足其一即触发(详见设计稿)
+    inactive-hours-for-additional: 12
+
+    # ---- 所有数值均可配置(改这里即可) ----
+    values:
+        growth-multiplier: 1.25        # 首顶: 当日成长值倍率
+        experience-multiplier: 1.25    # 额外: 当日经验值倍率
+        hp-step: 2                     # 首顶奖励 生命值上限 +2(额外顶贴不加 HP)
+        hp-base: 30                    # 生命值下限(基准)
+        hp-hard-cap: 50                # 生命值上限(一排半爱心, +30)
+        growth-per-reward: 100         # 每次普通奖励 成长值 +100
+        additional-hp-step: 2          # 附加奖励额外 生命值上限 +2
+        additional-growth: 100         # 附加奖励 成长值 +100
+        star-points: 300               # 附加奖励 星光点(走 Vault)
+        streak-break-daily: 2          # 连签中断每日下降 2
+
+    # ---- MGactivity 导出接口命令模板 ----
+    # %PLAYER% = 玩家名; %VALUE% = 对应数值(由插件按配置填入)
+    mgactivity:
+        # 首顶: 设置当日成长值倍率
+        growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
+        # 额外: 设置当日经验值倍率
+        experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
+        # 生命值上限(传入绝对目标值, MGactivity 钳制到 [30,50])
+        setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
+        # 连签中断(收到即扣减)
+        streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
+
+    # ---- 成长值 +100 的发放指令 ----
+    # 说明: MGactivity 当前导出接口没有"加成长值"方法,
+    # 此处填入你实际的成长值发放命令(每次普通/附加奖励都会执行一次)。
+    # 若暂不接入, 留空即可(仅倍率/HP/星光点/连签生效)。
+    growth-grant-commands: []
+    #  - '你的成长值发放命令 %PLAYER% 100'
+
+    # ---- 附加顶贴奖励(高峰期 或 12h 无人顶贴, 任一满足) ----
+    additional:
+        enable: true
+
+    # ---- 星光点(走 Vault 经济核心, 不用命令) ----
+    vault:
+        enable-star-points: true

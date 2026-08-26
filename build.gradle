@@ -18,6 +18,7 @@ subprojects {
         maven { url = 'https://repo.opencollab.dev/maven-snapshots/' }
         maven { url = 'https://repo.opencollab.dev/maven-releases/' }
         maven { url = 'https://oss.sonatype.org/content/groups/public/' }
+        maven { url = 'https://jitpack.io' }
     }
 
     java {

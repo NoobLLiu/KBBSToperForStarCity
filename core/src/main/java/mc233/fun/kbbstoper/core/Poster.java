@@ -16,6 +16,8 @@ public class Poster {
     private String rewardbefore = "";
     private int rewardtime = 0;
     private int count = 0;
+    /** 当前生命值上限(由 KBBSToper 累加 HP 步长后经 MGactivity 钳制持久化)。 */
+    private int maxhp = 30;
 
     public static void setSQLer(SQLer sql) {
         Poster.sql = sql;
@@ -75,6 +77,14 @@ public class Poster {
 
     public void setCount(int count) {
         this.count = count;
+    }
+
+    public int getMaxhp() {
+        return maxhp;
+    }
+
+    public void setMaxhp(int maxhp) {
+        this.maxhp = maxhp;
     }
 
     public List<String> getTopStates() {

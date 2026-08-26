@@ -73,6 +73,16 @@ public interface Platform {
     /** 以控制台身份执行一条命令（奖励命令由此下发）。 */
     void dispatchConsoleCommand(String command);
 
+    /**
+     * 通过经济核心（如 Vault）给玩家发放货币/积分（星光点等）。
+     * 平台不保证一定有经济插件：未安装时静默忽略（不抛异常）。
+     * amount &le; 0 时静默忽略。
+     *
+     * @param player 玩家名（与顶帖绑定名一致）
+     * @param amount 发放数量
+     */
+    void depositEconomy(String player, double amount);
+
     // ---- 杂项 ----
 
     /** 把 &a 之类的颜色码转成平台使用的格式。 */

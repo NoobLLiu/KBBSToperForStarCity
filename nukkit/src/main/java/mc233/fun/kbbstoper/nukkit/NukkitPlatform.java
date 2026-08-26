@@ -117,6 +117,15 @@ public class NukkitPlatform implements Platform {
     }
 
     @Override
+    public void depositEconomy(String player, double amount) {
+        if (amount <= 0) {
+            return;
+        }
+        // Nukkit 端当前无 Vault 经济核心，星光点发放暂不支持，仅记录
+        logger.warning("Nukkit 平台暂不支持 Vault 经济发放，已忽略 " + player + " 的星光点 " + amount);
+    }
+
+    @Override
     public String colorize(String text) {
         return TextFormat.colorize('&', text);
     }

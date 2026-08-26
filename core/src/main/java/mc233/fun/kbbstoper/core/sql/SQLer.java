@@ -27,7 +27,7 @@ public abstract class SQLer {
     public void addPoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`) VALUES (?, ?, ?, ?, ?, ?);",
+                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`, `maxhp`) VALUES (?, ?, ?, ?, ?, ?, ?);",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getUuid());
@@ -36,6 +36,7 @@ public abstract class SQLer {
             pstmt.setLong(4, poster.getBinddate());
             pstmt.setString(5, poster.getRewardbefore());
             pstmt.setInt(6, poster.getRewardtime());
+            pstmt.setInt(7, poster.getMaxhp());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("写入绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -47,7 +48,7 @@ public abstract class SQLer {
     public void updatePoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=? WHERE `uuid`=?;",
+                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=?, `maxhp`=? WHERE `uuid`=?;",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getName());
@@ -55,7 +56,8 @@ public abstract class SQLer {
             pstmt.setLong(3, poster.getBinddate());
             pstmt.setString(4, poster.getRewardbefore());
             pstmt.setInt(5, poster.getRewardtime());
-            pstmt.setString(6, poster.getUuid());
+            pstmt.setInt(6, poster.getMaxhp());
+            pstmt.setString(7, poster.getUuid());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("更新绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -101,6 +103,7 @@ public abstract class SQLer {
                     poster.setBinddate(rs.getLong("binddate"));
                     poster.setRewardbefore(rs.getString("rewardbefore"));
                     poster.setRewardtime(rs.getInt("rewardtimes"));
+                    poster.setMaxhp(rs.getInt("maxhp"));
                 }
             }
         } catch (Exception e) {

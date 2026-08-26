@@ -182,15 +182,18 @@ public class Crawler {
 
         String datenow = new SimpleDateFormat("yyyy-M-dd").format(new Date());
         if (!datenow.equals(poster.getRewardbefore())) {
+            Reward.applyDailyStreakBreakIfNeeded(poster);
             poster.setRewardbefore(datenow);
             poster.setRewardtime(0);
         }
 
         if (poster.getRewardtime() >= Option.REWARD_TIMES.getInt()) {
+            // 超出每日上限: 仅记录顶贴, 不再发奖
+            sql.addTopState(bbsname, time);
             return;
         }
 
-        new Reward(olplayer, this, index).award();
+        new Reward(olplayer, this, index, poster).award();
         sql.addTopState(bbsname, time);
         poster.setRewardtime(poster.getRewardtime() + 1);
         sql.updatePoster(poster);

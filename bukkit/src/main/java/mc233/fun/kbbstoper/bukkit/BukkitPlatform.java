@@ -7,11 +7,13 @@ import mc233.fun.kbbstoper.core.platform.PlatformOfflinePlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformScheduler;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
+import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -110,6 +112,22 @@ public class BukkitPlatform implements Platform {
     @Override
     public void dispatchConsoleCommand(String command) {
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void depositEconomy(String player, double amount) {
+        if (amount <= 0) {
+            return;
+        }
+        RegisteredServiceProvider<Economy> rsp =
+                Bukkit.getServer().getServicesManager().getRegistration(Economy.class);
+        if (rsp == null || rsp.getProvider() == null) {
+            logger.warning("Vault 经济核心未安装，无法给 " + player + " 发放星光点 " + amount);
+            return;
+        }
+        // 按玩家名发放(与顶帖绑定名一致); Vault 的 String 重载虽标注废弃但兼容性最好
+        rsp.getProvider().depositPlayer(player, amount);
     }
 
     @Override
