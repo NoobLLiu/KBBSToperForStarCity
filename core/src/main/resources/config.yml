@@ -41,8 +41,8 @@ database:
         database: 'bbstoper.db'
 
 bbs:
-    #服务器宣传贴的帖子id
-    url: '1034574'
+    #服务器宣传贴的帖子id (StarCity 服默认宣传帖)
+    url: '173068'
     #顶帖列表/玩家排名每页的大小
     pagesize: 10
     #玩家多久能更换一次绑定的id, 单位天
