@@ -1,3 +1,12 @@
+pluginManagement {
+    repositories {
+        // Maven Central 在 runner 上 IPv4 可达；插件门户(plugins.gradle.org)为 AAAA-only 被拒，
+        // 故优先从 Maven Central 解析 com.gradleup.shadow 等插件，避免依赖插件门户。
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name = 'KBBSToper'
 
 include 'core'
