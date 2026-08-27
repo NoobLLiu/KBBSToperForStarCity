@@ -6,7 +6,7 @@ echo ============================================================
 echo   KBBSToperForStarCity - one-click build and GitHub release
 echo   Repo: NoobLLiu/KBBSToperForStarCity
 echo ============================================================
-echo.
+echo(
 
 REM ---------- 1. Check JDK 21 ----------
 java -version 2>&1 | findstr /R "21\." >nul
@@ -35,7 +35,7 @@ if "%VERSION%"=="" (
 echo [OK] Version: %VERSION%
 
 REM ---------- 3. Build Bukkit jar (core + bukkit, shadowJar) ----------
-echo.
+echo(
 echo [BUILD] Running gradlew :bukkit:build ...
 call gradlew.bat :bukkit:build --no-daemon
 if errorlevel 1 (
@@ -55,7 +55,7 @@ echo [OK] Artifact: %JAR%
 
 REM ---------- 4. Create / update Release ----------
 set "TAG=v%VERSION%"
-echo.
+echo(
 echo [RELEASE] Handling Release %TAG% ...
 
 gh release view %TAG% --repo NoobLLiu/KBBSToperForStarCity >nul 2>&1
@@ -75,7 +75,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo.
+echo(
 echo ============================================================
 echo   DONE! Release URL:
 echo   https://github.com/NoobLLiu/KBBSToperForStarCity/releases/tag/%TAG%
