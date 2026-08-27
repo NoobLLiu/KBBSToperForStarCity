@@ -30,6 +30,9 @@ jobs:
       # 探针：确认各仓库 IPv4 可达性（runner 上 IPv6 被拒，故 -4）
       - name: Repo IPv4 reachability probe
         run: |
+          echo "=== verbose curl to detect proxy ==="
+          curl -sv --max-time 25 -4 https://repo1.maven.org/maven2/ 2>&1 | grep -iE "proxy|connected to|trying|HTTP/" | head
+          echo "=== per-repo code ==="
           for u in \
             "https://repo1.maven.org/maven2/" \
             "https://repo.papermc.io/repository/maven-public/" \
