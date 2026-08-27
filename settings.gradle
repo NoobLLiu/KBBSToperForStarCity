@@ -1,8 +1,8 @@
 pluginManagement {
     repositories {
-        // Maven Central 在 runner 上 IPv4 可达；插件门户(plugins.gradle.org)为 AAAA-only 被拒，
-        // 故优先从 Maven Central 解析 com.gradleup.shadow 等插件，避免依赖插件门户。
-        mavenCentral()
+        // 该 runner 上 repo.maven.apache.org 为 AAAA-only(无可用 A)被拒；
+        // 旧别名 repo1.maven.org 有可用 IPv4，故显式指向它以解析 com.gradleup.shadow 等插件。
+        maven { url = 'https://repo1.maven.org/maven2/' }
         gradlePluginPortal()
     }
 }

@@ -12,7 +12,8 @@ subprojects {
     apply plugin: 'java'
 
     repositories {
-        mavenCentral()
+        // 该 runner 上 repo.maven.apache.org 为 AAAA-only 被拒，旧别名 repo1.maven.org 有可用 IPv4
+        maven { url = 'https://repo1.maven.org/maven2/' }
         maven { url = 'https://repo.papermc.io/repository/maven-public/' }
         maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
         maven { url = 'https://repo.opencollab.dev/maven-snapshots/' }

@@ -6,6 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 该 runner 上大量主机为 AAAA-only / IPv6 被拒，但 IPv4 可达（curl -4 验证）。
+# 强制所有 JVM 仅用 IPv4，使 Gradle 依赖解析走 IPv4。
+env:
+  JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
+
 permissions:
   contents: write
 
@@ -21,6 +26,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      # 探针：确认各仓库 IPv4 可达性（runner 上 IPv6 被拒，故 -4）
+      - name: Repo IPv4 reachability probe
+        run: |
+          for u in \
+            "https://repo1.maven.org/maven2/" \
+            "https://repo.papermc.io/repository/maven-public/" \
+            "https://repo.extendedclip.com/content/repositories/placeholderapi/" \
+            "https://repo.opencollab.dev/maven-releases/" \
+            "https://oss.sonatype.org/content/groups/public/" \
+            "https://jitpack.io/" ; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 -4 "$u" 2>/dev/null) || code="REFUSED"
+            echo "$code  $u"
+          done
 
       # 绕过 Gradle wrapper 的在线发行版下载（其 HttpURLConnection 默认优先 IPv6 被拒）。
       # 直接用 curl（走 IPv4）预下载 Gradle 8.7 并解压，运行本地 gradle 二进制。
