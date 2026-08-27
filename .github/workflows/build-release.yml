@@ -6,6 +6,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 强制所有 JVM（含 Gradle 自身及其依赖下载子进程）走 IPv4。
+# 诊断确认：runner 上 services.gradle.org / repo1.maven.org 等仅 IPv6 可达被拒，
+# curl -4 可通（307/200），故用 preferIPv4Stack 让 Java 同样走 IPv4。
+env:
+  JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
+
 permissions:
   contents: write
 
@@ -22,21 +28,16 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Network diagnostics
+      # 绕过 Gradle wrapper 的在线发行版下载（其 HttpURLConnection 默认优先 IPv6 被拒）。
+      # 直接用 curl（走 IPv4）预下载 Gradle 8.7 并解压，运行本地 gradle 二进制。
+      - name: Install Gradle 8.7 (curl over IPv4)
         run: |
-          echo "=== proxy env ==="; env | grep -i proxy || echo "no-proxy-env"
-          echo "=== /etc/environment ==="; cat /etc/environment 2>/dev/null || echo none
-          echo "=== /etc/curlrc ==="; cat /etc/curlrc 2>/dev/null || echo "no-curlrc"
-          echo "=== resolve services.gradle.org ==="; getent hosts services.gradle.org || echo "resolve-fail"
-          echo "=== curl -4 gradle ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -4 https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1 || echo "v4-refused"
-          echo "=== curl -6 gradle ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -6 https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1 || echo "v6-refused"
-          echo "=== curl -4 maven ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -4 https://repo1.maven.org/maven2/ 2>&1 || echo "v4-refused"
+          curl -sSL -o /tmp/gradle-8.7-bin.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q /tmp/gradle-8.7-bin.zip -d /opt
+          echo "GRADLE_BIN=/opt/gradle-8.7/bin/gradle" >> "$GITHUB_ENV"
 
       - name: Build Bukkit jar (core + bukkit, shadowJar)
-        run: ./gradlew :bukkit:build --no-daemon
+        run: $GRADLE_BIN :bukkit:build --no-daemon
 
       - name: Show build output
         run: ls -la bukkit/build/libs/
