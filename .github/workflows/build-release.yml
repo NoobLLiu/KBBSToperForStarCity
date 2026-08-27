@@ -25,6 +25,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Egress probe
+        run: |
+          for u in \
+            "https://services.gradle.org/distributions/gradle-8.7-bin.zip" \
+            "https://downloads.gradle.org/distributions/gradle-8.7-bin.zip" \
+            "https://repo1.maven.org/maven2/" \
+            "https://repo.papermc.io/repository/maven-public/" \
+            "https://repo.extendedclip.com/content/repositories/placeholderapi/" \
+            "https://jitpack.io/" ; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 -I "$u" 2>/dev/null) || code="REFUSED"
+            echo "$code  $u"
+          done
+
       - name: Build Bukkit jar (core + bukkit, shadowJar)
         env:
           JAVA_OPTS: "-Djava.net.preferIPv4Stack=true"
