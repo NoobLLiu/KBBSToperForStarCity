@@ -25,25 +25,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Detect outbound proxy and export Gradle JVM opts
+      - name: Configure JVM network opts (force IPv6 preference)
         run: |
-          echo "Proxy env: HTTPS_PROXY=$HTTPS_PROXY HTTP_PROXY=$HTTP_PROXY"
-          RAW="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy}}}}"
-          PROXY_HOST=""; PROXY_PORT=""
-          if [ -n "$RAW" ]; then
-            hostport=$(echo "$RAW" | sed -E 's#^[a-zA-Z]+://##')
-            PROXY_HOST=$(echo "$hostport" | cut -d: -f1)
-            PROXY_PORT=$(echo "$hostport" | cut -d: -f2)
-          fi
-          OPTS="-Djava.net.preferIPv4Stack=true"
-          if [ -n "$PROXY_HOST" ] && [ -n "$PROXY_PORT" ]; then
-            OPTS="$OPTS -Dhttp.proxyHost=$PROXY_HOST -Dhttp.proxyPort=$PROXY_PORT -Dhttps.proxyHost=$PROXY_HOST -Dhttps.proxyPort=$PROXY_PORT"
-            echo "Using proxy $PROXY_HOST:$PROXY_PORT"
-          else
-            echo "No proxy detected; using direct connection"
-          fi
-          echo "JAVA_OPTS=$OPTS" >> "$GITHUB_ENV"
-          echo "GRADLE_OPTS=$OPTS" >> "$GITHUB_ENV"
+          # runner 出网对 services.gradle.org 等的 IPv4 路径被拒、IPv6 可达，
+          # curl 能通而 Java HttpURLConnection 默认优先 IPv4 失败。
+          # 用 JAVA_TOOL_OPTIONS 让所有 JVM(含 Gradle wrapper/daemon)优先 IPv6。
+          echo "JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
+          echo "JAVA_OPTS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
+          echo "GRADLE_OPTS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
 
       - name: Build Bukkit jar (core + bukkit, shadowJar)
         run: ./gradlew :bukkit:build --no-daemon
