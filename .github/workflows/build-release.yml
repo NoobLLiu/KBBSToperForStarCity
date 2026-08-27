@@ -6,12 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# 强制所有 JVM（含 Gradle 自身及其依赖下载子进程）走 IPv4。
-# 诊断确认：runner 上 services.gradle.org / repo1.maven.org 等仅 IPv6 可达被拒，
-# curl -4 可通（307/200），故用 preferIPv4Stack 让 Java 同样走 IPv4。
-env:
-  JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
-
 permissions:
   contents: write
 
