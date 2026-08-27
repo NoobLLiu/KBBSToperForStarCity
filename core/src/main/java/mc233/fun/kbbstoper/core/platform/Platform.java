@@ -83,6 +83,18 @@ public interface Platform {
      */
     void depositEconomy(String player, double amount);
 
+    /**
+     * 获取 MGactivity 对接接口实现。
+     *
+     * <p>默认返回 {@code null}，表示 MGactivity 未安装或未注册其实现；
+     * 调用方应回退到控制台命令下发（{@code reward.mgactivity:} 下的命令模板）。</p>
+     *
+     * @return MGactivity 实现，未提供时返回 null
+     */
+    default MGactivityApi getMGactivityApi() {
+        return null;
+    }
+
     // ---- 杂项 ----
 
     /** 把 &a 之类的颜色码转成平台使用的格式。 */

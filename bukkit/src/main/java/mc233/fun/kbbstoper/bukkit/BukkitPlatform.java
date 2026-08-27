@@ -1,5 +1,6 @@
 package mc233.fun.kbbstoper.bukkit;
 
+import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.Platform;
 import mc233.fun.kbbstoper.core.platform.PlatformConfig;
 import mc233.fun.kbbstoper.core.platform.PlatformLogger;
@@ -128,6 +129,12 @@ public class BukkitPlatform implements Platform {
         }
         // 按玩家名发放(与顶帖绑定名一致); Vault 的 String 重载虽标注废弃但兼容性最好
         rsp.getProvider().depositPlayer(player, amount);
+    }
+
+    @Override
+    public MGactivityApi getMGactivityApi() {
+        // MGactivity 已实现并注册时返回其实现，否则返回 null（调用方回退命令）
+        return Bukkit.getServer().getServicesManager().load(MGactivityApi.class);
     }
 
     @Override

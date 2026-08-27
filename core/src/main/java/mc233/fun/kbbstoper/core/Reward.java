@@ -1,5 +1,6 @@
 package mc233.fun.kbbstoper.core;
 
+import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 
 import java.text.ParseException;
@@ -178,34 +179,20 @@ public class Reward {
         List<String> cmds = new ArrayList<>();
         String name = player.getName();
 
-        // 基础: 成长值 +growth-per-reward (每次有效奖励)
+        // 基础: 成长值 +growth-per-reward (每次有效奖励) —— 始终走命令(成长值接口不在 MGactivity API 内)
         cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
                 Option.REWARD_VAL_GROWTH.getDouble()));
 
-        // 首顶 → 成长值倍率
-        if (isFirst) {
-            cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name,
-                    Option.REWARD_VAL_GROWTH_MULT.getDouble()));
-        }
-        // 额外 → 经验值倍率
-        if (isExtra) {
-            cmds.add(buildMgCommand(Option.REWARD_MG_EXP_CMD.getString(), name,
-                    Option.REWARD_VAL_EXP_MULT.getDouble()));
-        }
-
-        // 附加奖励: 额外 HP + 成长值 + 星光点
-        double starPoints = 0;
-        // HP+2 仅首顶生效; 附加奖励再额外 +2(叠加在首顶之上)
+        // HP 步进: 首顶 +hp-step; 附加奖励再 +additional-hp-step
         int hpStep = 0;
         if (isFirst) {
             hpStep += Option.REWARD_VAL_HP_STEP.getInt();
         }
         if (additional) {
             hpStep += Option.REWARD_VAL_ADD_HP_STEP.getInt();
-            // 附加奖励再发一次成长值(+additional-growth)
+            // 附加奖励再发一次成长值(+additional-growth) —— 走命令
             cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
                     Option.REWARD_VAL_ADD_GROWTH.getDouble()));
-            starPoints = Option.REWARD_VAL_STAR.getInt();
         }
 
         // 生命值上限累加并钳制
@@ -219,9 +206,30 @@ public class Reward {
         if (poster != null) {
             poster.setMaxhp(newMaxHp);
         }
-        cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, newMaxHp));
 
-        dispatch(cmds, starPoints);
+        // 星光点(仅附加奖励发放)
+        double starPoints = additional ? Option.REWARD_VAL_STAR.getInt() : 0;
+
+        // MGactivity 效果(倍率/HP): 优先走 Java API, 否则回退控制台命令
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        MgEffect effect;
+        if (mg != null) {
+            effect = new MgEffect(isFirst, Option.REWARD_VAL_GROWTH_MULT.getDouble(),
+                    isExtra, Option.REWARD_VAL_EXP_MULT.getDouble(), true, newMaxHp);
+        } else {
+            effect = new MgEffect(false, 0, false, 0, false, 0);
+            if (isFirst) {
+                cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name,
+                        Option.REWARD_VAL_GROWTH_MULT.getDouble()));
+            }
+            if (isExtra) {
+                cmds.add(buildMgCommand(Option.REWARD_MG_EXP_CMD.getString(), name,
+                        Option.REWARD_VAL_EXP_MULT.getDouble()));
+            }
+            cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, newMaxHp));
+        }
+
+        dispatch(name, cmds, starPoints, mg, effect);
 
         player.sendMessage(Message.PREFIX.getString()
                 + Message.REWARD.getString().replaceAll("%TIME%", crawler.Time.get(index)));
@@ -250,46 +258,82 @@ public class Reward {
 
     /** 手动测试指定类型的奖励命令。 */
     public void testAward(String type) {
-        List<String> cmds = new ArrayList<>();
         String name = player.getName();
+        List<String> cmds = new ArrayList<>();
         double star = 0;
+        double growthMult = Option.REWARD_VAL_GROWTH_MULT.getDouble();
+        double expMult = Option.REWARD_VAL_EXP_MULT.getDouble();
+        int maxHp;
         switch (type) {
             case "NORMAL":
                 cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
                         Option.REWARD_VAL_GROWTH.getDouble()));
-                cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name,
-                        Option.REWARD_VAL_GROWTH_MULT.getDouble()));
-                cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name,
-                        Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
-                                Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt())));
+                maxHp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
+                        Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt());
                 break;
             case "INCENTIVE":
             case "ADDITIONAL":
                 cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
                         Option.REWARD_VAL_ADD_GROWTH.getDouble()));
-                cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name,
-                        Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
-                                Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt()
-                                        + Option.REWARD_VAL_ADD_HP_STEP.getInt())));
+                maxHp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
+                        Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt()
+                                + Option.REWARD_VAL_ADD_HP_STEP.getInt());
                 star = Option.REWARD_VAL_STAR.getInt();
                 break;
             default:
                 return;
         }
-        dispatch(cmds, star);
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        MgEffect effect;
+        if (mg != null) {
+            // 测试默认走首顶+HP(不含经验倍率, 与原命令版语义一致)
+            effect = new MgEffect(true, growthMult, false, expMult, true, maxHp);
+        } else {
+            effect = new MgEffect(false, 0, false, 0, false, 0);
+            cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name, growthMult));
+            cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, maxHp));
+        }
+        dispatch(name, cmds, star, mg, effect);
     }
 
-    /** 奖励命令回到主线程由控制台执行, 星光点通过 Vault 经济发放。 */
-    private void dispatch(List<String> cmds, double starPoints) {
-        final String name = player.getName();
+    /** MGactivity 效果集合(供 dispatch 在主线程判定走 API 还是命令回退)。 */
+    private record MgEffect(boolean growth, double growthMult,
+                             boolean exp, double expMult,
+                             boolean maxHp, int maxHpVal) {
+    }
+
+    /**
+     * 奖励回到主线程执行: 优先走 MGactivity Java API, 否则回退控制台命令;
+     * 星光点经 Vault 经济发放。
+     */
+    private void dispatch(String name, List<String> cmds, double starPoints,
+                          MGactivityApi mg, MgEffect effect) {
+        final String n = name;
+        final List<String> c = cmds;
         final double sp = starPoints;
+        final MGactivityApi m = mg;
+        final MgEffect e = effect;
         final boolean vaultStar = Option.REWARD_VAULT_STAR.getBoolean();
         KBBSToperCore.scheduler().runSync(() -> {
-            for (String cmd : cmds) {
-                KBBSToperCore.platform().dispatchConsoleCommand(cmd);
+            if (m != null) {
+                if (e.growth()) {
+                    m.setGrowthMultiplier(n, e.growthMult());
+                }
+                if (e.exp()) {
+                    m.setExperienceMultiplier(n, e.expMult());
+                }
+                if (e.maxHp()) {
+                    m.setMaxHp(n, e.maxHpVal());
+                }
+            } else {
+                for (String cmd : c) {
+                    if (cmd != null && !cmd.isBlank()) {
+                        KBBSToperCore.platform().dispatchConsoleCommand(cmd);
+                    }
+                }
             }
             if (sp > 0 && vaultStar) {
-                KBBSToperCore.platform().depositEconomy(name, sp);
+                KBBSToperCore.platform().depositEconomy(n, sp);
             }
         });
     }
@@ -305,12 +349,19 @@ public class Reward {
             return;
         }
         int val = Option.REWARD_VAL_STREAK.getInt();
-        String cmd = Option.REWARD_MG_STREAK_CMD.getString()
-                .replaceAll("%PLAYER%", poster.getName())
-                .replaceAll("%VALUE%", String.valueOf(val));
-        final String finalCmd = cmd;
-        KBBSToperCore.scheduler().runSync(() ->
-                KBBSToperCore.platform().dispatchConsoleCommand(finalCmd));
+        String name = poster.getName();
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        final int v = val;
+        if (mg != null) {
+            KBBSToperCore.scheduler().runSync(() -> mg.addStreakBreak(name, v));
+        } else {
+            String cmd = Option.REWARD_MG_STREAK_CMD.getString()
+                    .replaceAll("%PLAYER%", name)
+                    .replaceAll("%VALUE%", String.valueOf(val));
+            final String finalCmd = cmd;
+            KBBSToperCore.scheduler().runSync(() ->
+                    KBBSToperCore.platform().dispatchConsoleCommand(finalCmd));
+        }
     }
 
     private static String yesterday() {
