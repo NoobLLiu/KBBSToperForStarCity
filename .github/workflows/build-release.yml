@@ -26,6 +26,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Bukkit jar (core + bukkit, shadowJar)
+        env:
+          JAVA_OPTS: "-Djava.net.preferIPv4Stack=true"
+          GRADLE_OPTS: "-Djava.net.preferIPv4Stack=true"
         run: ./gradlew :bukkit:build --no-daemon
 
       - name: Show build output
