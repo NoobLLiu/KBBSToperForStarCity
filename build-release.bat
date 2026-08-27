@@ -1,79 +1,83 @@
 @echo off
 setlocal enabledelayedexpansion
-cd /d %~dp0
+cd /d "%~dp0"
 
 echo ============================================================
-echo   KBBSToperForStarCity 一键构建并发布 GitHub Release
-echo   仓库: NoobLLiu/KBBSToperForStarCity
+echo   KBBSToperForStarCity - one-click build and GitHub release
+echo   Repo: NoobLLiu/KBBSToperForStarCity
 echo ============================================================
 echo.
 
-REM ---------- 1. 检查 JDK 21 ----------
+REM ---------- 1. Check JDK 21 ----------
 java -version 2>&1 | findstr /R "21\." >nul
 if errorlevel 1 (
-    echo [错误] 需要 JDK 21（Gradle 8.7 + paper-api 1.21 不支持 JDK 22+）。
-    echo   请先安装 Microsoft OpenJDK 21：
+    echo [ERROR] JDK 21 is required (Gradle 8.7 + paper-api 1.21 do not support JDK 22+).
+    echo   Install Microsoft OpenJDK 21:
     echo     winget install Microsoft.OpenJDK.21
-    echo   安装后确保其 java 在 PATH 中（或设置 JAVA_HOME 指向 JDK21）。
+    echo   Make sure its java is on PATH (or set JAVA_HOME to JDK21).
     pause
     exit /b 1
 )
-echo [OK] JDK 版本满足要求。
+echo [OK] JDK version is acceptable.
 
-REM ---------- 2. 读取版本号（来自 build.gradle 的 version = 'x.y.z'）----------
-for /f "tokens=3 delims= " %%v in ('findstr /R "version = " build.gradle') do set RAWVER=%%v
+REM ---------- 2. Read version from build.gradle (version = 'x.y.z') ----------
+for /f "usebackq tokens=3" %%v in (`findstr /C:"version = " build.gradle`) do (
+    set "RAWVER=%%v"
+    goto :gotver
+)
+:gotver
 set "VERSION=%RAWVER:'=%"
 if "%VERSION%"=="" (
-    echo [错误] 无法从 build.gradle 读取版本号。
+    echo [ERROR] Could not read version from build.gradle.
     pause
     exit /b 1
 )
-echo [OK] 版本号: %VERSION%
+echo [OK] Version: %VERSION%
 
-REM ---------- 3. 构建 Bukkit jar（core + bukkit, shadowJar）----------
+REM ---------- 3. Build Bukkit jar (core + bukkit, shadowJar) ----------
 echo.
-echo [构建] 正在执行 gradlew :bukkit:build ...
+echo [BUILD] Running gradlew :bukkit:build ...
 call gradlew.bat :bukkit:build --no-daemon
 if errorlevel 1 (
-    echo [错误] 构建失败，请查看上面的 Gradle 输出。
+    echo [ERROR] Build failed. See Gradle output above.
     pause
     exit /b 1
 )
 
 set "JAR=bukkit\build\libs\KBBSToper-Bukkit-%VERSION%.jar"
 if not exist "%JAR%" (
-    echo [错误] 未找到产物: %JAR%
-    echo   请确认 build.gradle 中 shadowJar 输出的 jar 名称与此一致。
+    echo [ERROR] Artifact not found: %JAR%
+    echo   Confirm the shadowJar output name in build.gradle matches this.
     pause
     exit /b 1
 )
-echo [OK] 产物: %JAR%
+echo [OK] Artifact: %JAR%
 
-REM ---------- 4. 发布 / 更新 Release ----------
+REM ---------- 4. Create / update Release ----------
 set "TAG=v%VERSION%"
 echo.
-echo [发布] 处理 Release %TAG% ...
+echo [RELEASE] Handling Release %TAG% ...
 
 gh release view %TAG% --repo NoobLLiu/KBBSToperForStarCity >nul 2>&1
 if not errorlevel 1 (
-    echo   Release %TAG% 已存在，更新 jar 资产（--clobber）...
+    echo   Release %TAG% already exists, updating jar asset (--clobber)...
     gh release upload %TAG% "%JAR%" --repo NoobLLiu/KBBSToperForStarCity --clobber
 ) else (
-    echo   创建 Release %TAG% 并上传 jar ...
+    echo   Creating Release %TAG% and uploading jar ...
     gh release create %TAG% "%JAR%" --repo NoobLLiu/KBBSToperForStarCity --title %TAG% --generate-notes
 )
 if errorlevel 1 (
-    echo [错误] 发布失败。请确认：
-    echo   1) 已执行 gh auth login 登录 GitHub 账号 NoobLLiu；
-    echo   2) 网络可访问 github.com；
-    echo   3) 对仓库有写权限。
+    echo [ERROR] Release failed. Check:
+    echo   1) gh auth login done with GitHub account NoobLLiu;
+    echo   2) network can reach github.com;
+    echo   3) write permission on the repo.
     pause
     exit /b 1
 )
 
 echo.
 echo ============================================================
-echo   完成！Release 地址：
+echo   DONE! Release URL:
 echo   https://github.com/NoobLLiu/KBBSToperForStarCity/releases/tag/%TAG%
 echo ============================================================
 pause
