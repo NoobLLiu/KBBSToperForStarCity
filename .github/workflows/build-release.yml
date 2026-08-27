@@ -1,4 +1,16 @@
-name: Build & Release (Bukkit)
+name: Build & Release (Bukkit, self-hosted)
+
+# 触发方式（手动云端构建）：
+#   1) 网页: 仓库 Actions 页 -> 本 workflow -> Run workflow -> 选 master
+#   2) CLI:  gh workflow run "Build & Release (Bukkit, self-hosted)" --repo NoobLLiu/KBBSToperForStarCity
+#   3) 推 tag: git tag -a vX.Y.Z -m "..." && git push origin --tags
+#
+# 重要：runs-on 使用 self-hosted。GitHub 托管的 ubuntu-latest runner 对本仓库存在
+# JVM 出网隔离（curl 能联网但 Gradle 的 Java HTTP 客户端连不上 Maven / PaperMC 仓库），
+# 导致插件与依赖解析失败。需在你自己的机器上注册一个 self-hosted runner 后本 workflow 才能跑通。
+# 注册步骤见 https://github.com/NoobLLiu/KBBSToperForStarCity/settings/actions/runners
+#
+# 自托管 runner 要求：JDK 21（Gradle 8.7 + paper-api 1.21，不支持 JDK 25）、能正常访问外网。
 
 on:
   push:
@@ -6,17 +18,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# 该 runner 上大量主机为 AAAA-only / IPv6 被拒，但 IPv4 可达（curl -4 验证）。
-# 强制所有 JVM 仅用 IPv4，使 Gradle 依赖解析走 IPv4。
-env:
-  JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
-
 permissions:
   contents: write
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,33 +34,11 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # 探针：确认各仓库 IPv4 可达性（runner 上 IPv6 被拒，故 -4）
-      - name: Repo IPv4 reachability probe
-        run: |
-          echo "=== verbose curl to detect proxy ==="
-          curl -sv --max-time 25 -4 https://repo1.maven.org/maven2/ 2>&1 | grep -iE "proxy|connected to|trying|HTTP/" | head
-          echo "=== per-repo code ==="
-          for u in \
-            "https://repo1.maven.org/maven2/" \
-            "https://repo.papermc.io/repository/maven-public/" \
-            "https://repo.extendedclip.com/content/repositories/placeholderapi/" \
-            "https://repo.opencollab.dev/maven-releases/" \
-            "https://oss.sonatype.org/content/groups/public/" \
-            "https://jitpack.io/" ; do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 -4 "$u" 2>/dev/null) || code="REFUSED"
-            echo "$code  $u"
-          done
-
-      # 绕过 Gradle wrapper 的在线发行版下载（其 HttpURLConnection 默认优先 IPv6 被拒）。
-      # 直接用 curl（走 IPv4）预下载 Gradle 8.7 并解压，运行本地 gradle 二进制。
-      - name: Install Gradle 8.7 (curl over IPv4)
-        run: |
-          curl -sSL -o /tmp/gradle-8.7-bin.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
-          unzip -q /tmp/gradle-8.7-bin.zip -d /opt
-          echo "GRADLE_BIN=/opt/gradle-8.7/bin/gradle" >> "$GITHUB_ENV"
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build Bukkit jar (core + bukkit, shadowJar)
-        run: $GRADLE_BIN :bukkit:build --no-daemon
+        run: ./gradlew :bukkit:build --no-daemon
 
       - name: Show build output
         run: ls -la bukkit/build/libs/
