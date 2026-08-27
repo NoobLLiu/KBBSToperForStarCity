@@ -25,14 +25,15 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Configure JVM network opts (force IPv6 preference)
+      - name: Network diagnostics
         run: |
-          # runner 出网对 services.gradle.org 等的 IPv4 路径被拒、IPv6 可达，
-          # curl 能通而 Java HttpURLConnection 默认优先 IPv4 失败。
-          # 用 JAVA_TOOL_OPTIONS 让所有 JVM(含 Gradle wrapper/daemon)优先 IPv6。
-          echo "JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
-          echo "JAVA_OPTS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
-          echo "GRADLE_OPTS=-Djava.net.preferIPv6Addresses=true" >> "$GITHUB_ENV"
+          echo "=== proxy env ==="; env | grep -i proxy || echo "no-proxy-env"
+          echo "=== /etc/environment ==="; cat /etc/environment 2>/dev/null || echo none
+          echo "=== /etc/curlrc ==="; cat /etc/curlrc 2>/dev/null || echo "no-curlrc"
+          echo "=== resolve services.gradle.org ==="; getent hosts services.gradle.org || echo "resolve-fail"
+          echo "=== curl -4 gradle ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -4 https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1 || echo "v4-refused"
+          echo "=== curl -6 gradle ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -6 https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1 || echo "v6-refused"
+          echo "=== curl -4 maven ==="; curl -sS -o /dev/null -w "%{http_code}\n" --max-time 20 -4 https://repo1.maven.org/maven2/ 2>&1 || echo "v4-refused"
 
       - name: Build Bukkit jar (core + bukkit, shadowJar)
         run: ./gradlew :bukkit:build --no-daemon
