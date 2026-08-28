@@ -24,7 +24,7 @@
 顶贴奖励按「论坛账号 ↔ 游戏账号」绑定发放。先用指令绑定你的论坛 ID：
 
 ```
-/bt bind <论坛ID>
+/bt binding <论坛ID>
 ```
 
 绑定后，爬虫检测到你顶了服务器宣传帖，就会自动给你发奖。
@@ -83,9 +83,10 @@
 
 | 指令 | 权限 | 作用 |
 | --- | --- | --- |
-| `/bt bind <论坛ID> [玩家]` | `bbstoper.bind` | 绑定 / 为他人绑定论坛账号 |
-| `/bt check <bbsid \| player> <值>` | `bbstoper.check` | 查询某论坛ID或玩家的绑定 / 顶贴状态 |
-| `/bt reward <玩家> [次数]` | `bbstoper.reward` | 手动给某玩家补发奖励（走完整逻辑） |
+| `/bt binding <论坛ID>` | `bbstoper.binding` | 绑定自己的论坛账号（需输入两次确认；**本版仅本人，不支持为他人绑定**） |
+| `/bt check bbsid <论坛ID>` | `bbstoper.check` | 查某论坛ID被哪个玩家绑定 |
+| `/bt check player <玩家ID>` | `bbstoper.check` | 查某玩家绑定的论坛ID |
+| `/bt reward` | `bbstoper.reward` | 主动领取**自己**已顶帖的奖励（走完整发奖逻辑；**本版仅本人，无目标玩家参数**） |
 | `/bt testreward <玩家>` | `bbstoper.testreward` | 测试奖励下发（不发实际数值） |
 | `/bt top` | `bbstoper.top` | 查看顶贴排行榜 |
 | `/bt list` | `bbstoper.list` | 列出已绑定玩家 |
