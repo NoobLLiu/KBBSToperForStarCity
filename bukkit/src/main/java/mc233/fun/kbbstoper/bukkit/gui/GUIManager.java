@@ -15,7 +15,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.InventoryHolder;
 
 /**
@@ -161,10 +164,18 @@ public class GUIManager implements Listener {
         int raw = ev.getRawSlot();
         if (raw == 2) {
             ev.setCancelled(true);
-            if (ev.getCurrentItem() != null && ev.getCurrentItem().getType() != org.bukkit.Material.AIR) {
-                String text = ev.getCurrentItem().hasItemMeta()
-                        && ev.getCurrentItem().getItemMeta().hasDisplayName()
-                        ? ev.getCurrentItem().getItemMeta().getDisplayName() : "";
+            // 优先取 AnvilInventory 的改名文本(最可靠), 拿不到再退回结果物品名
+            String text = null;
+            if (ev.getInventory() instanceof AnvilInventory) {
+                text = ((AnvilInventory) ev.getInventory()).getRenameText();
+            }
+            if ((text == null || text.isBlank()) && ev.getCurrentItem() != null
+                    && ev.getCurrentItem().getType() != org.bukkit.Material.AIR
+                    && ev.getCurrentItem().hasItemMeta()
+                    && ev.getCurrentItem().getItemMeta().hasDisplayName()) {
+                text = ev.getCurrentItem().getItemMeta().getDisplayName();
+            }
+            if (text != null && !text.isBlank()) {
                 anvil.confirm(p, text);
             }
             return;
@@ -194,6 +205,27 @@ public class GUIManager implements Listener {
         ));
         msg.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
         p.spigot().sendMessage(msg);
+    }
+
+    /**
+     * 铁砧准备结果：把改名费用清零并给出结果物品。
+     * 不清零的话玩家经验不足时客户端结果槽为空，点了没反应、无法提交。
+     */
+    @EventHandler
+    public void onPrepareAnvil(PrepareAnvilEvent event) {
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof AnvilInput) {
+            ((AnvilInput) holder).onPrepare(event);
+        }
+    }
+
+    /** 铁砧关闭时还原临时补齐的经验，保证输入过程不消耗玩家经验。 */
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof AnvilInput) {
+            ((AnvilInput) holder).restoreXp();
+        }
     }
 
     @EventHandler
