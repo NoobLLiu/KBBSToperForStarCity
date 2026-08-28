@@ -130,6 +130,9 @@ reward:
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         # 连签中断(收到即扣减)
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
+        # 星光点是否优先走 MGactivity Java API(addStarlightPoints, 增量累加)
+        # 接口不可用(未注册/未覆写)或此处关闭时, 自动回退 reward.vault 的 Vault 经济发放
+        enable-star-points: true
 
     # ---- 成长值 +100 的发放指令 ----
     # 说明: MGactivity 当前导出接口没有"加成长值"方法,
@@ -142,6 +145,7 @@ reward:
     additional:
         enable: true
 
-    # ---- 星光点(走 Vault 经济核心, 不用命令) ----
+    # ---- 星光点回退通道(Vault 经济核心, 不用命令) ----
+    # 仅当 MGactivity API 通道不可用(见 reward.mgactivity.enable-star-points)时启用
     vault:
         enable-star-points: true

@@ -304,7 +304,7 @@ public class Reward {
 
     /**
      * 奖励回到主线程执行: 优先走 MGactivity Java API, 否则回退控制台命令;
-     * 星光点经 Vault 经济发放。
+     * 星光点优先走 MGactivity API(addStarlightPoints), 不可用时回退 Vault 经济。
      */
     private void dispatch(String name, List<String> cmds, double starPoints,
                           MGactivityApi mg, MgEffect effect) {
@@ -332,8 +332,14 @@ public class Reward {
                     }
                 }
             }
-            if (sp > 0 && vaultStar) {
-                KBBSToperCore.platform().depositEconomy(n, sp);
+            if (sp > 0) {
+                // 星光点优先走 MGactivity Java API(addStarlightPoints);
+                // 接口不可用或配置关闭时回退 Vault 经济(depositEconomy)
+                if (m != null && Option.REWARD_MG_STAR_ENABLE.getBoolean()) {
+                    m.addStarlightPoints(n, (long) sp);
+                } else if (vaultStar) {
+                    KBBSToperCore.platform().depositEconomy(n, sp);
+                }
             }
         });
     }

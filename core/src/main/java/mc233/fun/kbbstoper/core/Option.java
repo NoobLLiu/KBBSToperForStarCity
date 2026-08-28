@@ -56,6 +56,7 @@ public enum Option {
     REWARD_MG_EXP_CMD("reward.mgactivity.experience-multiplier-cmd"),
     REWARD_MG_MAXHP_CMD("reward.mgactivity.setmaxhp-cmd"),
     REWARD_MG_STREAK_CMD("reward.mgactivity.streak-break-cmd"),
+    REWARD_MG_STAR_ENABLE("reward.mgactivity.enable-star-points"),
     REWARD_GROWTH_GRANT("reward.growth-grant-commands"),
     REWARD_ADDITIONAL_ENABLE("reward.additional.enable"),
     REWARD_VAULT_STAR("reward.vault.enable-star-points"),

@@ -75,4 +75,18 @@ public interface MGactivityApi {
      * @param value  增量，非负
      */
     void addStreakBreak(String player, int value);
+
+    /**
+     * 增加玩家星光点（增量累加，立即生效）。
+     *
+     * <p>此方法为 {@code default} 空实现：MGactivity 未覆写时静默无效果，
+     * 从而保证旧版 MGactivity（未实现星光点 API）无需改代码即可与新版 KBBSToper 共存。
+     * MGactivity 应在实现类中覆写本方法，委托给其 {@code ActivityManager.addStarlightPoints(player, value)}。</p>
+     *
+     * @param player 玩家名
+     * @param value  增量，非负
+     */
+    default void addStarlightPoints(String player, long value) {
+        // 默认空实现：MGactivity 未实现时静默（调用方自行决定是否回退 Vault）
+    }
 }

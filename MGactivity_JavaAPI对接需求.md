@@ -1,8 +1,10 @@
 # KBBSToperForStarCity × MGactivity —— Java API 对接需求文档（致 MGactivity 开发者）
 
-> 面向对象：MGactivity 插件开发者
-> 目的：请 MGactivity 提供一套**插件之间可直接调用的 Java 接口**，以替代 / 补充当前基于控制台命令的对接方式。
+> 面向对象：MGactivity 插件开发者  
+> 目的：请 MGactivity 提供一套**插件之间可直接调用的 Java 接口**，以替代 / 补充当前基于控制台命令的对接方式。  
 > 关联文档：命令式对接仍保留作为回退，详见《MGactivity对接文档.md》（开发者版）。
+
+
 
 ---
 
@@ -38,17 +40,23 @@ public interface MGactivityApi {
 
     /** 增加玩家连签中断计数（增量累加，立即生效）。 */
     void addStreakBreak(String player, int value);
+
+    /** 增加玩家星光点（增量累加）。default 空实现：MGactivity 未覆写时静默，保持向后兼容。 */
+    default void addStarlightPoints(String player, long value) {
+        // 请覆写为: 委托 ActivityManager.addStarlightPoints(player, value)
+    }
 }
 ```
 
 ### 1.1 语义约定（务必遵守）
 
-| 方法 | 含义 | 语义 | 范围 / 说明 |
-| --- | --- | --- | --- |
-| `setGrowthMultiplier` | 成长倍率 | **取最大值，不叠加相乘**；每日自动归位基准值（通常 `1.0`） | 建议 `[1.0, 5.0]` |
-| `setExperienceMultiplier` | 经验倍率 | **取最大值，不叠加相乘**；每日自动归位基准值 | 建议 `[1.0, 5.0]` |
-| `setMaxHp` | 生命值上限 | **绝对值写入并持久化**，跨天保留，不要每日清零 | KBBSToper 已钳制到 `[30, 50]`，MGactivity 可再防御性钳制一次 |
-| `addStreakBreak` | 连签中断值 | **增量累加**，立即生效 | 非负整数 |
+| 方法                        | 含义    | 语义                                 | 范围 / 说明                                        |
+| ------------------------- | ----- | ---------------------------------- | ---------------------------------------------- |
+| `setGrowthMultiplier`     | 成长倍率  | **取最大值，不叠加相乘**；每日自动归位基准值（通常 `1.0`） | 建议 `[1.0, 5.0]`                                |
+| `setExperienceMultiplier` | 经验倍率  | **取最大值，不叠加相乘**；每日自动归位基准值           | 建议 `[1.0, 5.0]`                                |
+| `setMaxHp`                | 生命值上限 | **绝对值写入并持久化**，跨天保留，不要每日清零          | KBBSToper 已钳制到 `[30, 50]`，MGactivity 可再防御性钳制一次 |
+| `addStreakBreak`          | 连签中断值 | **增量累加**，立即生效                      | 非负整数                                           |
+| `addStarlightPoints`（default） | 星光点    | **增量累加**，立即生效；KBBSToper 优先走此 API，不可用时回退 Vault | 非负整数，**请务必覆写 default 空实现**          |
 
 - `player` 为玩家游戏名（与顶帖绑定名一致，可能含中文 / 特殊字符），请确保按名解析正确。
 - 倍率每日清零由 **MGactivity** 负责：KBBSToper 只下发 `set`，不下发 `reset`。
@@ -125,6 +133,11 @@ public class MGactivityApiImpl implements MGactivityApi {
     public void addStreakBreak(String player, int value) {
         // 增量累加，立即生效
     }
+
+    @Override
+    public void addStarlightPoints(String player, long value) {
+        // 星光点增量累加（建议委托 ActivityManager.addStarlightPoints，与命令语义一致）
+    }
 }
 ```
 
@@ -151,28 +164,29 @@ if (mg != null) {
 
 ---
 
-## 4. 仍待 MGactivity 补充的接口（可选，非阻塞）
+## 4. 成长值 +100 的发放说明
 
-当前 KBBSToper 还需发放「成长值 +100」，但 MGactivity 暂未提供「增加成长值」入口。命令式侧已在 `reward.growth-grant-commands:` 预留（待 `addgrowth` 命令）。若能在 Java API 中一并补充：
-
-```java
-/** 增加玩家成长值（增量）。可选，KBBSToper 会按需调用。 */
-void addGrowth(String player, int value);
-```
-
-可在后续版本中让 KBBSToper 优先走 API 发放成长值。此项为可选，不影响本次对接。
+- 命令式：MGactivity 现已提供 `mgactivity addgrowthpoints %PLAYER% %VALUE%`（直接累加成长值）。
+  KBBSToper 侧只需在配置 `reward.growth-grant-commands:` 填入该命令即可生效（无需改代码）：
+  ```yaml
+  growth-grant-commands:
+    - 'mgactivity addgrowthpoints %PLAYER% %VALUE%'
+  ```
+- API 式（可选，非阻塞）：若 MGactivity 在 Java API 中补充 `addGrowth(String player, double value)`，
+  KBBSToper 后续可改为优先走 API 发放成长值。此项可选。
 
 ---
 
 ## 5. 联调 checklist（MGactivity 开发者自测）
 
-- [ ] 已实现 `mc233.fun.kbbstoper.core.platform.MGactivityApi` 四个方法，包名完全一致
+- [ ] 已实现 `mc233.fun.kbbstoper.core.platform.MGactivityApi` 四个抽象方法并覆写 `addStarlightPoints`，包名完全一致
 - [ ] 编译期依赖 KBBSToper core（或复制接口文件，全限定名一致）
 - [ ] `plugin.yml` 声明 `softdepend: [KBBSToper]`
 - [ ] `onEnable` 注册、`onDisable` 注销 `MGactivityApi`
 - [ ] `setGrowthMultiplier` / `setExperienceMultiplier` 为「取最大值」语义，且次日自动归 `1.0`
-- [ ] `setMaxHp` 为绝对值写入，跨天保留，范围钳制 `[30, 50]`
+- [ ] `setMaxHp` 为绝对值写入，跨天保留，范围钳制 `[30, 50]`，且应用到在线玩家
 - [ ] `addStreakBreak` 为增量写入，立即生效
+- [ ] **覆写 `addStarlightPoints`**（委托 `ActivityManager.addStarlightPoints`），星光点才能经 API 到账
 - [ ] 玩家名（含中文 / 特殊字符）作为参数可正确解析
 - [ ] 未注册时 KBBSToper 自动回退命令（可在测试服卸载 MGactivity 验证无报错）
 
