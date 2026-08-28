@@ -81,6 +81,9 @@ public class DebugCommandHandler implements CommandHandler {
                 .replace("%REWARDBEFORE%", poster.getRewardbefore() == null ? "" : poster.getRewardbefore())
                 .replace("%REWARDTIME%", String.valueOf(poster.getRewardtime()))
                 .replace("%MAXHP%", String.valueOf(poster.getMaxhp()));
+        // 追加诊断信息: 便于排查"配置 hp-base 仍是旧值(30)"导致的血量不同步
+        msg += " &7[基准 hp-base=" + Option.REWARD_VAL_HP_BASE.getInt()
+                + ", 上限 hp-cap=" + Option.REWARD_VAL_HP_CAP.getInt() + "]";
         sender.sendMessage(Message.PREFIX.getString() + msg);
     }
 

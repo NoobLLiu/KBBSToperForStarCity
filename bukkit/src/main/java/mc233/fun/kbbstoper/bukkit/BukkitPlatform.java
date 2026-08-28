@@ -190,6 +190,39 @@ public class BukkitPlatform implements Platform {
     }
 
     @Override
+    public void applyMaxHealth(String player, int maxHealth) {
+        if (maxHealth <= 0) {
+            return;
+        }
+        Player p = Bukkit.getPlayerExact(player);
+        if (p == null) {
+            return;
+        }
+        org.bukkit.attribute.AttributeInstance attr = p.getAttribute(findMaxHealthAttribute());
+        if (attr == null) {
+            return;
+        }
+        attr.setBaseValue(maxHealth);
+        // 当前血量高于新上限时钳制, 避免残留高血量
+        if (p.getHealth() > maxHealth) {
+            p.setHealth(maxHealth);
+        }
+    }
+
+    /** 1.21.x 为 GENERIC_MAX_HEALTH, 更新版本可能更名 MAX_HEALTH, 两者都尝试。 */
+    private org.bukkit.attribute.Attribute findMaxHealthAttribute() {
+        try {
+            return org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH");
+        } catch (IllegalArgumentException e) {
+            try {
+                return org.bukkit.attribute.Attribute.valueOf("MAX_HEALTH");
+            } catch (IllegalArgumentException ignore) {
+                return null;
+            }
+        }
+    }
+
+    @Override
     public String colorize(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);
     }

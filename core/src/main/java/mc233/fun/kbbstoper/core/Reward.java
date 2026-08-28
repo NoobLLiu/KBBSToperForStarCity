@@ -468,12 +468,18 @@ public class Reward {
         final String n = name;
         final int hp = maxhp;
         KBBSToperCore.scheduler().runSync(() -> {
+            // 兜底直写: 无论 MGactivity 是否安装/是否正确应用, 在线玩家一律直接改生命上限属性,
+            // 保证游戏内数值与本插件记录一致(debug clear 后尤其关键)
+            KBBSToperCore.platform().applyMaxHealth(n, hp);
             if (mg != null) {
                 mg.setMaxHp(n, hp);
                 if (resetDailyMultipliers) {
                     mg.setGrowthMultiplier(n, 1.0);
                     mg.setExperienceMultiplier(n, 1.0);
                 }
+                KBBSToperCore.logger().info("[奖励同步] " + n + " 生命上限 -> " + hp
+                        + " (MGactivity API + 属性直写"
+                        + (resetDailyMultipliers ? " + 倍率归位" : "") + ")");
             } else {
                 String maxHpCmd = Option.REWARD_MG_MAXHP_CMD.getString()
                         .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", String.valueOf(hp));
@@ -492,6 +498,9 @@ public class Reward {
                         KBBSToperCore.platform().dispatchConsoleCommand(e);
                     }
                 }
+                KBBSToperCore.logger().info("[奖励同步] " + n + " 生命上限 -> " + hp
+                        + " (属性直写" + (maxHpCmd != null && !maxHpCmd.isBlank() ? " + MGactivity 命令回退" : "")
+                        + (resetDailyMultipliers ? " + 倍率归位" : "") + ")");
             }
         });
     }
