@@ -129,7 +129,8 @@ reward:
         growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
         # 额外: 设置当日经验值倍率
         experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
-        # 生命值上限(传入绝对目标值, MGactivity 钳制到 [30,50])
+        # 生命值上限(传入绝对目标值, KBBSToper 侧已钳制到 [20,50];
+        # MGactivity 不要再二次抬到下界 30, 直接采用传入值即可)
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         # 连签中断(收到即扣减)
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
