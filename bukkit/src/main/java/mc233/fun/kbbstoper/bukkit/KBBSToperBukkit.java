@@ -85,7 +85,7 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
         getLogger().info("GitHub项目地址 https://github.com/R-Josef/BBSToper");
         getLogger().info("------");
         getLogger().info("修改作者 小浩");
-        getLogger().info("项目地址 https://github.com/SnowCherryServer/KBBSToper");
+        getLogger().info("项目地址 https://github.com/NoobLLiu/KBBSToperForStarCity");
         getLogger().info("-----");
     }
 

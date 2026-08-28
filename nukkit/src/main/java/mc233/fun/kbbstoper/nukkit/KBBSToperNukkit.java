@@ -40,7 +40,7 @@ public class KBBSToperNukkit extends PluginBase implements Listener {
         getLogger().info(Message.ENABLE.getString());
         getLogger().info("------");
         getLogger().info("修改作者 小浩");
-        getLogger().info("项目地址 https://github.com/SnowCherryServer/KBBSToper");
+        getLogger().info("项目地址 https://github.com/NoobLLiu/KBBSToperForStarCity");
         getLogger().info("-----");
     }
 

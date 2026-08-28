@@ -1,11 +1,11 @@
 #########################################
 #                                       #
-#       这里是KBBSToper的语言文件        #
+#       这里是KBBSToperForStarCity的语言文件        #
 #                                       #
 #########################################
 
 #插件前缀
-prefix: '&e[&dKBBSToper&e] '
+prefix: '&e[&dKBBSToperForStarCity&e] '
 
 #载入
 enable: '插件已启用!'
@@ -88,7 +88,7 @@ gui:
 #表单的标题与正文不渲染颜色码, 插件会自动去掉颜色码后再显示
 form:
     #主界面
-    title: 'KBBSToper'
+    title: 'KBBSToperForStarCity'
     content: '论坛顶帖奖励'
     button:
         binding: '绑定论坛ID'
@@ -126,7 +126,7 @@ extrainfo: '&b现在顶贴还可以获得 %EXTRA% 哦.'
 
 #帮助
 help:
-    title: '&3&lKBBSToper指令帮助'
+    title: '&3&lKBBSToperForStarCity指令帮助'
     help: '&3显示帮助信息: &b/bt help'
     binding: '&3绑定论坛账号: &b/bt binding <KLPBBS论坛ID>'
     reward: '&3获取奖励: &b/bt reward'

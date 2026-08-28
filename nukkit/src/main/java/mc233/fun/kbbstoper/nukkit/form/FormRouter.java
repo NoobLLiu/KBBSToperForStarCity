@@ -90,7 +90,7 @@ public final class FormRouter {
     }
 
     private static void sendMainForm(Player player, String bbsid, int posttimes) {
-        String title = Message.FORM_TITLE.getString("&l&dKBBSToper")
+        String title = Message.FORM_TITLE.getString("&l&dKBBSToperForStarCity")
                 .replace("%PREFIX%", Message.PREFIX.getString());
 
         StringBuilder content = new StringBuilder();
