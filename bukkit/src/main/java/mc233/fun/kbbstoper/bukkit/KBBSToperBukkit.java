@@ -24,6 +24,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 /** Bukkit 主类。 */
@@ -100,10 +103,26 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
         thread.start();
     }
 
+    /** 与 resources/gui.yml 顶部的 layout-version 保持一致。 */
+    private static final int GUI_LAYOUT_VERSION = 2;
+
     private void loadGuiConfig() {
         File f = new File(getDataFolder(), "gui.yml");
         if (!f.exists()) {
             saveResource("gui.yml", false);
+        }
+        // 布局模板升级: 服务端已有旧版 gui.yml 时, 备份为 gui_old.yml 后覆盖为新模板
+        YamlConfiguration loaded = YamlConfiguration.loadConfiguration(f);
+        if (loaded.getInt("layout-version", 0) != GUI_LAYOUT_VERSION) {
+            try {
+                Files.copy(f.toPath(),
+                        new File(getDataFolder(), "gui_old.yml").toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+                saveResource("gui.yml", true);
+                getLogger().info("gui.yml 布局模板已升级到 v" + GUI_LAYOUT_VERSION + ", 旧文件备份为 gui_old.yml");
+            } catch (IOException e) {
+                getLogger().severe("升级 gui.yml 时出错: " + e.getMessage());
+            }
         }
         guiConfig = YamlConfiguration.loadConfiguration(f);
         GUI.setGuiConfig(guiConfig);

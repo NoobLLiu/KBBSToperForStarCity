@@ -8,6 +8,11 @@
 #   %REWARDTIME% %REWARDBEFORE%          #
 #   %TODAYLIMIT% %COOLDOWN% %PAGEURL%    #
 #########################################
+
+# 布局模板版本: 与插件版本解耦, 仅当本文件布局模板变更时递增。
+# 服务端已有旧版 gui.yml 时, 插件启动会备份为 gui_old.yml 并覆盖为新模板。
+layout-version: 2
+
 gui:
   title: '%PREFIX%'
   # 基准行数(OP 完整 4 行); 普通玩家自动降为 3 行, 隐藏管理行

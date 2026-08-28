@@ -172,10 +172,9 @@ public final class GUI {
                 String actionKey = (isBind && bound)
                         ? isec.getString("bound-action", "") : isec.getString("action", "");
                 if (actionKey != null && !actionKey.isBlank()) {
-                    try {
-                        holder.getActions().put(slot, GuiAction.valueOf(actionKey.toUpperCase()));
-                    } catch (IllegalArgumentException e) {
-                        KBBSToperCore.logger().warning("gui.yml 中的动作无法识别: " + actionKey);
+                    GuiAction act = parseAction(actionKey);
+                    if (act != null) {
+                        holder.getActions().put(slot, act);
                     }
                 }
             }
@@ -504,6 +503,33 @@ public final class GUI {
         } catch (IllegalArgumentException e) {
             KBBSToperCore.logger().warning("gui.yml 中的材质名无法识别：" + name + "，已回退为 " + fallback);
             return fallback;
+        }
+    }
+
+    /**
+     * 解析 gui.yml 里的动作名；兼容旧版模板的动作名(open/status/info 等)，
+     * 避免旧布局下按钮失灵。
+     */
+    private static GuiAction parseAction(String actionKey) {
+        String up = actionKey.trim().toUpperCase();
+        try {
+            return GuiAction.valueOf(up);
+        } catch (IllegalArgumentException e) {
+            switch (up) {
+                case "OPEN":
+                    return GuiAction.PROMO_POST;
+                case "STATUS":
+                case "INFO":
+                    return GuiAction.MY_STATUS;
+                case "RECORD":
+                case "MYRECORD":
+                    return GuiAction.MY_RECORDS;
+                case "PAGE":
+                    return GuiAction.PROMO_POST;
+                default:
+                    KBBSToperCore.logger().warning("gui.yml 中的动作无法识别: " + actionKey);
+                    return null;
+            }
         }
     }
 }
