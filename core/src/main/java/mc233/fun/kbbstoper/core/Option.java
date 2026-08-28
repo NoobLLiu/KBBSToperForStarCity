@@ -94,8 +94,22 @@ public enum Option {
         return config.getBoolean(path);
     }
 
+    /**
+     * 带缺省值的布尔读取。
+     * 旧版配置里没有的新增键用本方法，保证行为与内置模板一致
+     * （直接用 {@link #getBoolean()} 会把缺失键读成 false）。
+     */
+    public boolean getBoolean(boolean def) {
+        return config.getBoolean(path, def);
+    }
+
     public int getInt() {
         return config.getInt(path);
+    }
+
+    /** 带缺省值的整数读取，用于旧配置缺失新增键时兜底。 */
+    public int getInt(int def) {
+        return config.getInt(path, def);
     }
 
     /** 读取小数(倍率等)。键缺失或非数字时返回 0.0。 */

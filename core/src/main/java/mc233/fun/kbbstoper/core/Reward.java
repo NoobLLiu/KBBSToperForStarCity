@@ -410,7 +410,8 @@ public class Reward {
             if (sp > 0) {
                 // 星光点优先走 MGactivity Java API(addStarlightPoints);
                 // 接口不可用或配置关闭时回退 Vault 经济(depositEconomy)
-                if (m != null && Option.REWARD_MG_STAR_ENABLE.getBoolean()) {
+                // 缺省 true: 旧版配置里没有这个键时, 按内置模板的行为(走 API)处理
+                if (m != null && Option.REWARD_MG_STAR_ENABLE.getBoolean(true)) {
                     m.addStarlightPoints(n, (long) sp);
                 } else if (vaultStar) {
                     KBBSToperCore.platform().depositEconomy(n, sp);
