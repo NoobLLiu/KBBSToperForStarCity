@@ -112,6 +112,9 @@ public class RewardCommandHandler implements CommandHandler {
         }
         sql.updatePoster(poster);
 
+        // 顶帖检测后主动向 MGactivity 刷新奖励数值状态
+        Reward.refreshRewardState(poster, false);
+
         if (issucceed) {
             sender.sendMessage(Message.PREFIX.getString() + Message.REWARDGIVED.getString());
             KBBSToperCore.platform().getOnlinePlayers().stream()

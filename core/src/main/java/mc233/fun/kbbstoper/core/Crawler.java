@@ -208,6 +208,9 @@ public class Crawler {
         poster.setRewardtime(poster.getRewardtime() + 1);
         sql.updatePoster(poster);
 
+        // 顶帖检测后主动向 MGactivity 刷新奖励数值状态
+        Reward.refreshRewardState(poster, false);
+
         broadcastReward(olplayer);
     }
 

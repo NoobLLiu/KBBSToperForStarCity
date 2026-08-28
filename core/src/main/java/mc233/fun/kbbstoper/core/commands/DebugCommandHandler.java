@@ -5,6 +5,7 @@ import mc233.fun.kbbstoper.core.Crawler;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.Reward;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
@@ -60,6 +61,10 @@ public class DebugCommandHandler implements CommandHandler {
         poster.setMaxhp(Option.REWARD_VAL_HP_BASE.getInt());
         SQLManager.getSQLer().updatePoster(poster);
         SQLManager.getSQLer().clearTopStates(poster.getBbsname());
+
+        // 管理员调整后主动刷新: 向 MGactivity 同步生命上限并把当日成长/经验倍率归位 1.0
+        Reward.refreshRewardState(poster, true);
+
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_CLEAR.getString());
     }
 

@@ -445,6 +445,59 @@ public class Reward {
         }
     }
 
+    /**
+     * 主动把玩家的奖励数值状态同步给 MGactivity（生命上限绝对值）。
+     *
+     * <p>用于"数据主动刷新"的三个时机：顶帖检测后 / 玩家上线时 / 管理员 debug 调整后。
+     * 优先走 Java API，未注册时回退 {@code reward.mgactivity:} 控制台命令模板。
+     * 若 {@code resetDailyMultipliers} 为 true（仅 debug clear 用），同时把当日成长/经验倍率归位 1.0。</p>
+     *
+     * @param poster                玩家绑定记录（读其 maxhp）
+     * @param resetDailyMultipliers 是否把每日倍率归位 1.0
+     */
+    public static void refreshRewardState(Poster poster, boolean resetDailyMultipliers) {
+        if (poster == null) {
+            return;
+        }
+        String name = poster.getName();
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        int base = Option.REWARD_VAL_HP_BASE.getInt();
+        int maxhp = Math.max(poster.getMaxhp(), base);
+
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        final String n = name;
+        final int hp = maxhp;
+        KBBSToperCore.scheduler().runSync(() -> {
+            if (mg != null) {
+                mg.setMaxHp(n, hp);
+                if (resetDailyMultipliers) {
+                    mg.setGrowthMultiplier(n, 1.0);
+                    mg.setExperienceMultiplier(n, 1.0);
+                }
+            } else {
+                String maxHpCmd = Option.REWARD_MG_MAXHP_CMD.getString()
+                        .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", String.valueOf(hp));
+                if (maxHpCmd != null && !maxHpCmd.isBlank()) {
+                    KBBSToperCore.platform().dispatchConsoleCommand(maxHpCmd);
+                }
+                if (resetDailyMultipliers) {
+                    String g = Option.REWARD_MG_GROWTH_CMD.getString()
+                            .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", "1");
+                    String e = Option.REWARD_MG_EXP_CMD.getString()
+                            .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", "1");
+                    if (g != null && !g.isBlank()) {
+                        KBBSToperCore.platform().dispatchConsoleCommand(g);
+                    }
+                    if (e != null && !e.isBlank()) {
+                        KBBSToperCore.platform().dispatchConsoleCommand(e);
+                    }
+                }
+            }
+        });
+    }
+
     private static String yesterday() {
         Calendar c = Calendar.getInstance();
         c.add(Calendar.DAY_OF_MONTH, -1);

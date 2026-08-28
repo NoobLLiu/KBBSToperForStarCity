@@ -22,16 +22,20 @@ public class Reminder {
 
     /** 玩家进服后调用；内部自行切到异步线程，调用方可在主线程调用。 */
     public static void onJoin(PlatformPlayer player) {
-        if (!Option.BBS_JOINMESSAGE.getBoolean()) {
-            return;
-        }
         // 涉及数据库与网络 IO，必须异步
         KBBSToperCore.scheduler().runAsync(() -> {
             Util.enterTask();
             try {
+                Poster poster = sql.getPoster(player.getUniqueId().toString());
+                // 上线即主动向 MGactivity 刷新奖励数值状态(生命上限等)，不受 joinmessage 开关影响
+                if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
+                    Reward.refreshRewardState(poster, false);
+                }
+                if (!Option.BBS_JOINMESSAGE.getBoolean()) {
+                    return;
+                }
                 boolean isbinded = true;
                 boolean isposted = true;
-                Poster poster = sql.getPoster(player.getUniqueId().toString());
                 String datenow = new SimpleDateFormat("yyyy-M-dd").format(new Date());
                 if (poster == null) {
                     isbinded = false;
