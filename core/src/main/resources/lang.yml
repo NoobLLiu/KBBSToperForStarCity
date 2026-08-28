@@ -159,6 +159,15 @@ gui2:
         maxhp: '&e生命上限: &f%MAXHP%'
         rewardtime: '&e今日已领: &f%REWARDTIME%/%TODAYLIMIT% 次'
         rewardbefore: '&e上次领奖日: &f%REWARDBEFORE%'
+        today: '&e今日已领取: &f%TODAY%/%LIMIT% 次'
+        first: '&e  • 首次顶帖: &f%FIRSTSTATE%'
+        extra1: '&e  • 额外顶帖(1): &f%EXTRA1%'
+        extra2: '&e  • 额外顶帖(2): &f%EXTRA2%'
+        curhp: '&e当前生命上限: &f%CURHP%'
+        curgm: '&e当前成长倍率: &f%CURGM%'
+        curem: '&e当前经验倍率: &f%CUREM%'
+        curgrowth: '&e当前成长值: &f%CURGROWTH%'
+        curstar: '&e当前星光点: &f%CURSTAR%'
     #我的顶帖记录
     records:
         title: '&d&l我的顶帖记录'
@@ -172,7 +181,10 @@ gui2:
         title: '&6&l活动规则'
         peak: '&e高峰时段: &f%START%:00 - %END%:00 顶帖奖励加成'
         limit: '&e每日可领: &f首顶 %FIRST% 次 + 额外 %EXTRA% 次'
-        extra: '&e附加奖励: &f高峰期顶帖 或 离线超过 %HOURS% 小时再顶帖, 可额外领一次'
+        first: '&e首次顶帖(每日 %FIRST% 次): &f成长倍率 %GROWTHMULT%, 生命上限 +%HP% (上限 %CAP%)'
+        extra: '&e额外顶帖(每日 %EXTRA% 次): &f经验倍率 %EXPMULT%'
+        additional: '&e附加奖励: &f高峰(%START%:%END%) 或离线 %HOURS% 小时再顶帖 → 生命上限 +%ADHP%, 成长值 +%ADGROWTH%, 星光点 +%STAR%'
+        growth: '&e每次顶帖: &f成长值 +%GROWTH% (需配置 reward.growth-grant-commands 才入账)'
         reward: '&e单次奖励: &f成长值 +%GROWTH%, 成长倍率 %GROWTHMULT%, 经验倍率 %EXPMULT%, 生命上限 +%HP% (上限 %CAP%), 星光点 +%STAR%'
     #管理菜单
     manage:

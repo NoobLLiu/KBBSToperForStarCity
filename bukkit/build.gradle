@@ -7,8 +7,6 @@ dependencies {
     implementation project(':core')
     compileOnly 'io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT'
     compileOnly 'me.clip:placeholderapi:2.11.5'
-    // Vault 经济核心 API（运行时由服务端提供，仅编译期需要）
-    compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
     // Geyser API（含 Cumulus 表单库）: 让基岩版(Geyser)玩家收到原生表单。仅编译期需要，运行时由 Geyser-Spigot 提供
     compileOnly 'org.geysermc.geyser:api:2.9.0-SNAPSHOT'
     // Cumulus 表单库（SimpleForm/CustomForm/ModalForm），Geyser API 的 sendForm 需要它

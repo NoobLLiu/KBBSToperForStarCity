@@ -1,5 +1,6 @@
 package mc233.fun.kbbstoper.core;
 
+import mc233.fun.kbbstoper.core.commands.DebugCommandHandler;
 import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 
@@ -159,6 +160,8 @@ public class Reward {
         Calendar thispost = parseDateToCalendar(crawler.Time.get(index), BBS_FORMAT);
 
         if (Option.REWARD_INTERVAL.getInt() > 0 && isIntervalTooShort(thispost, index)) {
+            DebugCommandHandler.trace("award(" + player.getName() + "): 顶贴过于频繁(间隔 < "
+                    + Option.REWARD_INTERVAL.getInt() + " 分钟) → 不发奖");
             player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
                     .replaceAll("%TIME%", crawler.Time.get(index))
                     .replaceAll("%INTERVAL%", String.valueOf(Option.REWARD_INTERVAL.getInt())));
@@ -171,10 +174,14 @@ public class Reward {
         int extraLimit = Option.REWARD_DAILY_EXTRA.getInt();
         boolean isFirst = rt < firstLimit;
         boolean isExtra = !isFirst && rt < (firstLimit + extraLimit);
+        DebugCommandHandler.trace("award(" + player.getName() + "): 档位判定 rewardtime=" + rt
+                + " → 首顶=" + isFirst + ", 额外=" + isExtra);
 
         boolean isPeak = isPeakHour(thispost);
         boolean inactive = isInactiveLongEnough(thispost);
         boolean additional = Option.REWARD_ADDITIONAL_ENABLE.getBoolean() && (isPeak || inactive);
+        DebugCommandHandler.trace("award(" + player.getName() + "): 高峰=" + isPeak + ", 离线超12h=" + inactive
+                + " → 附加奖励=" + additional);
 
         List<String> cmds = new ArrayList<>();
         String name = player.getName();
@@ -206,6 +213,8 @@ public class Reward {
         if (poster != null) {
             poster.setMaxhp(newMaxHp);
         }
+        DebugCommandHandler.trace("award(" + player.getName() + "): 生命上限 " + current + " +" + hpStep
+                + " → " + newMaxHp + " (上限钳制 " + cap + "), 星光点 +" + (additional ? Option.REWARD_VAL_STAR.getInt() : 0));
 
         // 星光点(仅附加奖励发放)
         double starPoints = additional ? Option.REWARD_VAL_STAR.getInt() : 0;
@@ -390,6 +399,7 @@ public class Reward {
         final MgEffect e = effect;
         KBBSToperCore.scheduler().runSync(() -> {
             if (m != null) {
+                DebugCommandHandler.trace("dispatch(" + n + "): 走 MGactivity Java API 下发倍率/HP");
                 if (e.growth()) {
                     m.setGrowthMultiplier(n, e.growthMult());
                 }
@@ -400,6 +410,7 @@ public class Reward {
                     m.setMaxHp(n, e.maxHpVal());
                 }
             } else {
+                DebugCommandHandler.trace("dispatch(" + n + "): 走 MGactivity 控制台命令回退下发(" + c.size() + " 条)");
                 for (String cmd : c) {
                     if (cmd != null && !cmd.isBlank()) {
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);
@@ -407,12 +418,10 @@ public class Reward {
                 }
             }
             if (sp > 0) {
-                // 星光点直接对接 EssentialsX 经济(优先 EssentialsX 金钱, 回退 Vault)。
+                // 星光点直接对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令)。
                 // 旧 MGactivity addStarlightPoints 通道已弃用(原实现无效, 不入账)。
-                // reward.vault.enable-star-points 缺省 true: 旧配置缺失该键时按内置行为(发放)处理
-                if (Option.REWARD_VAULT_STAR.getBoolean(true)) {
-                    KBBSToperCore.platform().depositEconomy(n, sp);
-                }
+                DebugCommandHandler.trace("dispatch(" + n + "): 发放星光点 " + sp + " (EssentialsX → /money give 回退)");
+                KBBSToperCore.platform().depositEconomy(n, sp);
             }
         });
     }
@@ -429,6 +438,7 @@ public class Reward {
         }
         int val = Option.REWARD_VAL_STREAK.getInt();
         String name = poster.getName();
+        DebugCommandHandler.trace("断签检测(" + name + "): 上次领奖 " + old + " 非今天/昨天 → 扣连签中断 " + val);
         MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
         final int v = val;
         if (mg != null) {
@@ -444,13 +454,14 @@ public class Reward {
     }
 
     /**
-     * 主动把玩家的奖励数值状态同步给 MGactivity（生命上限绝对值）。
+     * 主动把玩家的奖励数值状态同步给 MGactivity（生命上限绝对值由 MGactivity 维护并应用到游戏内属性）。
      *
      * <p>用于"数据主动刷新"的三个时机：顶帖检测后 / 玩家上线时 / 管理员 debug 调整后。
      * 优先走 Java API，未注册时回退 {@code reward.mgactivity:} 控制台命令模板。
+     * 生命上限完全由 MGactivity 负责落地（本插件不再直接写玩家属性）。
      * 若 {@code resetDailyMultipliers} 为 true（仅 debug clear 用），同时把当日成长/经验倍率归位 1.0。</p>
      *
-     * @param poster                玩家绑定记录（读其 maxhp）
+     * @param poster                玩家绑定记录（读其 maxhp 作为目标值来源）
      * @param resetDailyMultipliers 是否把每日倍率归位 1.0
      */
     public static void refreshRewardState(Poster poster, boolean resetDailyMultipliers) {
@@ -468,9 +479,8 @@ public class Reward {
         final String n = name;
         final int hp = maxhp;
         KBBSToperCore.scheduler().runSync(() -> {
-            // 兜底直写: 无论 MGactivity 是否安装/是否正确应用, 在线玩家一律直接改生命上限属性,
-            // 保证游戏内数值与本插件记录一致(debug clear 后尤其关键)
-            KBBSToperCore.platform().applyMaxHealth(n, hp);
+            // 生命上限由 MGactivity 维护: 优先走 Java API(setMaxHp 会写入并应用到游戏内属性),
+            // 未注册时回退控制台命令模板(由 MGactivity 侧应用属性)。本插件不再自行写玩家属性。
             if (mg != null) {
                 mg.setMaxHp(n, hp);
                 if (resetDailyMultipliers) {
@@ -478,7 +488,7 @@ public class Reward {
                     mg.setExperienceMultiplier(n, 1.0);
                 }
                 KBBSToperCore.logger().info("[奖励同步] " + n + " 生命上限 -> " + hp
-                        + " (MGactivity API + 属性直写"
+                        + " (MGactivity API"
                         + (resetDailyMultipliers ? " + 倍率归位" : "") + ")");
             } else {
                 String maxHpCmd = Option.REWARD_MG_MAXHP_CMD.getString()
@@ -499,7 +509,7 @@ public class Reward {
                     }
                 }
                 KBBSToperCore.logger().info("[奖励同步] " + n + " 生命上限 -> " + hp
-                        + " (属性直写" + (maxHpCmd != null && !maxHpCmd.isBlank() ? " + MGactivity 命令回退" : "")
+                        + " (MGactivity 命令回退"
                         + (resetDailyMultipliers ? " + 倍率归位" : "") + ")");
             }
         });

@@ -1,5 +1,6 @@
 package mc233.fun.kbbstoper.core;
 
+import mc233.fun.kbbstoper.core.commands.DebugCommandHandler;
 import mc233.fun.kbbstoper.core.platform.PlatformOfflinePlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.sql.SQLer;
@@ -184,25 +185,35 @@ public class Crawler {
 
         PlatformPlayer olplayer = offline.getOnlinePlayer();
         if (olplayer == null) {
+            DebugCommandHandler.trace("检测: bbsname=" + bbsname + " time=" + time
+                    + " 玩家 " + uuid + " 当前不在线 → 跳过");
             return;
         }
         if (!olplayer.hasPermission("bbstoper.reward")) {
+            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 缺少 bbstoper.reward 权限 → 跳过");
             return;
         }
+        DebugCommandHandler.trace("检测: bbsname=" + bbsname + " time=" + time
+                + " 玩家 " + uuid + " 在线且有权限 → 进入发奖流程");
 
         String datenow = new SimpleDateFormat("yyyy-M-dd").format(new Date());
         if (!datenow.equals(poster.getRewardbefore())) {
             Reward.applyDailyStreakBreakIfNeeded(poster);
             poster.setRewardbefore(datenow);
             poster.setRewardtime(0);
+            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 跨天, rewardtime 重置为 0");
         }
 
         if (poster.getRewardtime() >= Option.REWARD_TIMES.getInt()) {
             // 超出每日上限: 仅记录顶贴, 不再发奖
+            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
+                    + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt() + " 达上限 → 仅记录顶贴");
             sql.addTopState(bbsname, time);
             return;
         }
 
+        DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
+                + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt() + " → 调用 award() 计算奖励");
         new Reward(olplayer, this, index, poster).award();
         sql.addTopState(bbsname, time);
         poster.setRewardtime(poster.getRewardtime() + 1);

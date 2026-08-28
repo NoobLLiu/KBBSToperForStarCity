@@ -95,19 +95,6 @@ public interface Platform {
         return null;
     }
 
-    /**
-     * 直接把在线玩家的生命上限属性设置为目标值，并把当前血量钳制到该值以内。
-     *
-     * <p>作为奖励数值同步的兜底通道：不依赖 MGactivity 是否安装/是否正确应用，
-     * 只要玩家在线就保证游戏内生命上限与本插件记录一致。玩家不在线时静默忽略。</p>
-     *
-     * @param player    玩家名
-     * @param maxHealth 目标生命上限
-     */
-    default void applyMaxHealth(String player, int maxHealth) {
-        // 默认无操作；Bukkit 端直接改 GENERIC_MAX_HEALTH 属性
-    }
-
     // ---- 杂项 ----
 
     /** 把 &a 之类的颜色码转成平台使用的格式。 */

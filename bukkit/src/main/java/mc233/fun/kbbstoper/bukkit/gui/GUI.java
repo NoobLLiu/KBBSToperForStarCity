@@ -187,16 +187,17 @@ public final class GUI {
     // ---------------------------------------------------------------
 
     public static void openStatus(Player player) {
-        Material[] mats = {Material.NAME_TAG, Material.PAPER, Material.APPLE,
-                Material.FIREWORK_ROCKET, Material.CLOCK};
         List<String> lines = GuiDataResolver.statusLines(new BukkitPlayer(player));
 
-        Inventory inv = menu(3, Message.GUI2_STATUS_TITLE.getString(), "status");
-        int slot = 2;
-        for (int i = 0; i < Math.min(lines.size(), mats.length); i++, slot += 2) {
-            place(inv, slot, mats[i], lines.get(i), null, null);
+        Inventory inv = menu(5, Message.GUI2_STATUS_TITLE.getString(), "status");
+        int placed = 0;
+        for (String line : lines) {
+            int row = 1 + placed / 7;
+            int col = 1 + (placed % 7);
+            place(inv, row * 9 + col, Material.PAPER, line, null, null);
+            placed++;
         }
-        place(inv, 22, Material.OAK_DOOR, Message.GUI2_MAIN.getString(), null, GuiAction.BACK);
+        place(inv, 40, Material.OAK_DOOR, Message.GUI2_MAIN.getString(), null, GuiAction.BACK);
         open(player, inv);
     }
 
@@ -282,15 +283,17 @@ public final class GUI {
     // ---------------------------------------------------------------
 
     public static void openRules(Player player) {
-        Material[] mats = {Material.NETHER_STAR, Material.CLOCK, Material.FIREWORK_ROCKET, Material.EMERALD};
         List<String> lines = GuiDataResolver.rulesLines();
 
-        Inventory inv = menu(3, Message.GUI2_RULES_TITLE.getString(), "rules");
-        int slot = 2;
-        for (int i = 0; i < Math.min(lines.size(), mats.length); i++, slot += 2) {
-            place(inv, slot, mats[i], lines.get(i), null, null);
+        Inventory inv = menu(5, Message.GUI2_RULES_TITLE.getString(), "rules");
+        int placed = 0;
+        for (String line : lines) {
+            int row = 1 + placed / 7;
+            int col = 1 + (placed % 7);
+            place(inv, row * 9 + col, Material.PAPER, line, null, null);
+            placed++;
         }
-        place(inv, 22, Material.OAK_DOOR, Message.GUI2_MAIN.getString(), null, GuiAction.BACK);
+        place(inv, 40, Material.OAK_DOOR, Message.GUI2_MAIN.getString(), null, GuiAction.BACK);
         open(player, inv);
     }
 

@@ -58,7 +58,6 @@ public enum Option {
     REWARD_MG_STREAK_CMD("reward.mgactivity.streak-break-cmd"),
     REWARD_GROWTH_GRANT("reward.growth-grant-commands"),
     REWARD_ADDITIONAL_ENABLE("reward.additional.enable"),
-    REWARD_VAULT_STAR("reward.vault.enable-star-points"),
     REWARD_COMMANDS("reward.commands"),
     REWARD_INCENTIVEREWARD_ENABLE("reward.incentivereward.enable"),
     REWARD_INCENTIVEREWARD_EXTRA("reward.incentivereward.extra"),

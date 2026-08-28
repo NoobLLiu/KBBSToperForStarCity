@@ -1,10 +1,13 @@
 package mc233.fun.kbbstoper.core;
 
+import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -87,21 +90,79 @@ public final class GuiDataResolver {
                 .replace("%PREFIX%", Message.PREFIX.getString());
     }
 
-    /** 我的状态页内容（双端共用文案）。 */
+    /** 我的状态页内容（双端共用文案，实时读配置与 MGactivity 当前值）。 */
     public static List<String> statusLines(PlatformPlayer player) {
         List<String> out = new ArrayList<>();
-        for (String line : List.of(
-                Message.GUI2_STATUS_BBSID.getString(),
-                Message.GUI2_STATUS_POSTTIMES.getString(),
-                Message.GUI2_STATUS_MAXHP.getString(),
-                Message.GUI2_STATUS_REWARDTIME.getString(),
-                Message.GUI2_STATUS_REWARDBEFORE.getString())) {
-            out.add(resolve(player, line));
+        Poster poster = poster(player);
+        boolean bound = poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank();
+        if (!bound) {
+            out.add(resolve(player, Message.GUI2_STATUS_BBSID.getString()));
+            return out;
         }
+        // 今日已领取次数: 仅当 rewardbefore 为今天才算数, 否则视为 0(跨天未领)
+        String todayStr = new SimpleDateFormat("yyyy-M-dd").format(new Date());
+        boolean today = poster.getRewardbefore() != null && poster.getRewardbefore().equals(todayStr);
+        int limit = todayLimit();
+        int claimed = today ? poster.getRewardtime() : 0;
+        String firstState = claimed >= 1 ? "✓ 已领取" : "✗ 未领取";
+        String extra1 = claimed >= 2 ? "✓ 已领取" : "✗ 未领取";
+        String extra2 = claimed >= 3 ? "✓ 已领取" : "✗ 未领取";
+
+        // 当前数值(优先读 MGactivity 查询接口, 未实现则用本插件记录的目标值 / "—")
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        String name = poster.getName();
+        int curHp = (mg != null) ? mg.getMaxHp(name) : -1;
+        if (curHp < 0) {
+            curHp = poster.getMaxhp();
+        }
+        String curGm = multStr(mg == null ? -1 : mg.getGrowthMultiplier(name));
+        String curEm = multStr(mg == null ? -1 : mg.getExperienceMultiplier(name));
+        String curGrowth = valStr(mg == null ? -1 : mg.getGrowthValue(name));
+        String curStar = starStr(mg == null ? -1 : mg.getStarlightPoints(name));
+
+        out.add(resolve(player, Message.GUI2_STATUS_BBSID.getString()));
+        out.add(resolve(player, Message.GUI2_STATUS_POSTTIMES.getString()));
+        out.add(statusReplace(Message.GUI2_STATUS_TODAY.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_FIRST.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_EXTRA1.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_EXTRA2.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_CURHP.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_CURGM.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_CUREM.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_CURGROWTH.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_CURSTAR.getString(),
+                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(resolve(player, Message.GUI2_STATUS_REWARDBEFORE.getString()));
         return out;
     }
 
-    /** 活动规则页内容（双端共用文案，纯静态）。 */
+    /** 把状态页专属占位符替换成实时计算值。 */
+    private static String statusReplace(String text, int claimed, int limit,
+                                         String firstState, String extra1, String extra2,
+                                         int curHp, String curGm, String curEm,
+                                         String curGrowth, String curStar) {
+        return text
+                .replace("%TODAY%", String.valueOf(claimed))
+                .replace("%LIMIT%", String.valueOf(limit))
+                .replace("%FIRSTSTATE%", firstState)
+                .replace("%EXTRA1%", extra1)
+                .replace("%EXTRA2%", extra2)
+                .replace("%CURHP%", String.valueOf(curHp))
+                .replace("%CURGM%", curGm)
+                .replace("%CUREM%", curEm)
+                .replace("%CURGROWTH%", curGrowth)
+                .replace("%CURSTAR%", curStar);
+    }
+
+    /** 活动规则页内容（双端共用文案，全部实时读 config）。 */
     public static List<String> rulesLines() {
         List<String> out = new ArrayList<>();
         out.add(Message.GUI2_RULES_PEAK.getString()
@@ -110,20 +171,43 @@ public final class GuiDataResolver {
         out.add(Message.GUI2_RULES_LIMIT.getString()
                 .replace("%FIRST%", String.valueOf(Option.REWARD_DAILY_FIRST.getInt()))
                 .replace("%EXTRA%", String.valueOf(Option.REWARD_DAILY_EXTRA.getInt())));
-        out.add(Message.GUI2_RULES_EXTRA.getString()
-                .replace("%HOURS%", String.valueOf(Option.REWARD_INACTIVE_HOURS.getInt())));
-        out.add(Message.GUI2_RULES_REWARD.getString()
-                .replace("%GROWTH%", String.valueOf(Option.REWARD_VAL_GROWTH.getInt()))
+        out.add(Message.GUI2_RULES_FIRST.getString()
+                .replace("%FIRST%", String.valueOf(Option.REWARD_DAILY_FIRST.getInt()))
                 .replace("%GROWTHMULT%", fmtMult(Option.REWARD_VAL_GROWTH_MULT.getDouble()))
-                .replace("%EXPMULT%", fmtMult(Option.REWARD_VAL_EXP_MULT.getDouble()))
                 .replace("%HP%", String.valueOf(Option.REWARD_VAL_HP_STEP.getInt()))
-                .replace("%CAP%", String.valueOf(Option.REWARD_VAL_HP_CAP.getInt()))
+                .replace("%CAP%", String.valueOf(Option.REWARD_VAL_HP_CAP.getInt())));
+        out.add(Message.GUI2_RULES_EXTRA.getString()
+                .replace("%EXTRA%", String.valueOf(Option.REWARD_DAILY_EXTRA.getInt()))
+                .replace("%EXPMULT%", fmtMult(Option.REWARD_VAL_EXP_MULT.getDouble())));
+        out.add(Message.GUI2_RULES_ADDITIONAL.getString()
+                .replace("%START%", String.valueOf(Option.REWARD_PEAK_START.getInt()))
+                .replace("%END%", String.valueOf(Option.REWARD_PEAK_END.getInt()))
+                .replace("%HOURS%", String.valueOf(Option.REWARD_INACTIVE_HOURS.getInt()))
+                .replace("%ADHP%", String.valueOf(Option.REWARD_VAL_ADD_HP_STEP.getInt()))
+                .replace("%ADGROWTH%", String.valueOf(Option.REWARD_VAL_ADD_GROWTH.getInt()))
                 .replace("%STAR%", String.valueOf(Option.REWARD_VAL_STAR.getInt())));
+        out.add(Message.GUI2_RULES_GROWTH.getString()
+                .replace("%GROWTH%", String.valueOf(Option.REWARD_VAL_GROWTH.getInt())));
         return out;
     }
 
     /** 把倍率格式化成可读文本：2.5 → "x2.5"，1.25 → "x1.25"。 */
     private static String fmtMult(double v) {
         return "x" + (v == Math.floor(v) ? String.valueOf((long) v) : String.valueOf(v));
+    }
+
+    /** 倍率查询值(<0 表示 MGactivity 未实现) → "x1.25" 或 "—"。 */
+    private static String multStr(double v) {
+        return v < 0 ? "—" : fmtMult(v);
+    }
+
+    /** 成长值查询值(<0) → 整数文本 或 "—"。 */
+    private static String valStr(double v) {
+        return v < 0 ? "—" : (v == Math.floor(v) ? String.valueOf((long) v) : String.valueOf(v));
+    }
+
+    /** 星光点查询值(<0) → 整数文本 或 "—"。 */
+    private static String starStr(long v) {
+        return v < 0 ? "—" : String.valueOf(v);
     }
 }

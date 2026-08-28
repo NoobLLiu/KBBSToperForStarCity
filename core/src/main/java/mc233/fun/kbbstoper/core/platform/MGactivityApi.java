@@ -33,8 +33,9 @@ package mc233.fun.kbbstoper.core.platform;
  * <h2>语义约定（务必遵守）</h2>
  * <ul>
  *   <li>倍率（growth / experience）：<b>不叠加，取最大值</b>；每日由 MGactivity 自动归位基准值（通常 1.0）。</li>
- *   <li>maxhp：KBBSToper 下发的是<b>已累加并钳制后的绝对值</b>（整数，约定范围 [20, 50]），
- *       应绝对值写入并持久化，跨天保留，不要每日清零。</li>
+ *   <li>maxhp：KBBSToper 下发的是<b>已累加并钳制后的绝对值</b>（整数，约定范围 [20, 50]，下限 hp-base、上限 hp-hard-cap 均由 KBBSToper 配置驱动）。
+ *       MGactivity 必须<b>把该值真正应用到玩家游戏内属性</b>（即设置 Minecraft 的 generic.max_health），并持久化、跨天保留、不要每日清零。
+ *       下限钳制请与 KBBSToper 的 hp-base（默认 20）保持一致，避免被 MGactivity 抬到 30 导致下限不一致。</li>
  *   <li>streakbreak：<b>增量</b>累加，立即生效。</li>
  *   <li>玩家名与顶帖绑定名一致；含中文/特殊字符时必须可正确解析。</li>
  * </ul>
@@ -69,6 +70,20 @@ public interface MGactivityApi {
     void setMaxHp(String player, int value);
 
     /**
+     * 读取玩家当前生命值上限（绝对值）。
+     *
+     * <p>用于 KBBSToper 状态页展示"当前生命上限"。建议实现类覆写本方法，
+     * 委托给其 {@code ActivityManager} 的当前上限读取；未覆写时返回 -1，
+     * KBBSToper 自动回退显示其自身记录的目标值。</p>
+     *
+     * @param player 玩家名
+     * @return 当前生命上限；未实现返回 -1
+     */
+    default int getMaxHp(String player) {
+        return -1;
+    }
+
+    /**
      * 增加玩家连签中断计数（增量累加，立即生效）。
      *
      * @param player 玩家名
@@ -87,7 +102,7 @@ public interface MGactivityApi {
      * @param value  增量，非负
      */
     default void addStarlightPoints(String player, long value) {
-        // 默认空实现：MGactivity 未实现时静默（调用方自行决定是否回退 Vault）
+        // 默认空实现：MGactivity 未实现时静默（调用方回退 EssentialsX 或 /money give 命令）
     }
 
     // ---- 可选查询方法（用于奖励提示显示"当前值"）----

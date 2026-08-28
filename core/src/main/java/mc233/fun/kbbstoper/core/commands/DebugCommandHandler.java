@@ -2,6 +2,7 @@ package mc233.fun.kbbstoper.core.commands;
 
 import mc233.fun.kbbstoper.core.CommandHandler;
 import mc233.fun.kbbstoper.core.Crawler;
+import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
@@ -13,8 +14,11 @@ import mc233.fun.kbbstoper.core.sql.SQLManager;
 import java.util.Arrays;
 import java.util.List;
 
-/** /bt debug &lt;clear|status|simulate&gt; —— OP 调试指令。 */
+/** /bt debug &lt;clear|status|simulate|open&gt; —— OP 调试指令。 */
 public class DebugCommandHandler implements CommandHandler {
+
+    /** 调试追踪总开关：开启后检测/发奖每一步都输出到控制台与 OP 玩家。 */
+    public static boolean debugTrace = false;
 
     @Override
     public void handle(PlatformSender sender, String[] args) {
@@ -22,17 +26,27 @@ public class DebugCommandHandler implements CommandHandler {
             sender.sendMessage(Message.PREFIX.getString() + Message.NOPERMISSION.getString());
             return;
         }
-        if (!sender.isPlayer()) {
-            sender.sendMessage(Message.PREFIX.getString() + Message.PLAYERCMD.getString());
-            return;
-        }
-        PlatformPlayer player = sender.asPlayer();
         if (args.length < 2) {
             sender.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
             sender.sendMessage(Message.PREFIX.getString() + Message.HELP_DEBUG.getString());
             return;
         }
-        switch (args[1].toLowerCase()) {
+        String sub = args[1].toLowerCase();
+        // open 允许控制台与玩家执行，不要求在线玩家
+        if ("open".equals(sub)) {
+            debugTrace = !debugTrace;
+            sender.sendMessage(Message.PREFIX.getString()
+                    + KBBSToperCore.platform().colorize(
+                            debugTrace ? "&a调试追踪已开启: 检测/发奖过程将输出到控制台与 OP 玩家"
+                                    : "&7调试追踪已关闭"));
+            return;
+        }
+        if (!sender.isPlayer()) {
+            sender.sendMessage(Message.PREFIX.getString() + Message.PLAYERCMD.getString());
+            return;
+        }
+        PlatformPlayer player = sender.asPlayer();
+        switch (sub) {
             case "clear":
                 clear(player, sender);
                 break;
@@ -45,6 +59,23 @@ public class DebugCommandHandler implements CommandHandler {
             default:
                 sender.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
                 sender.sendMessage(Message.PREFIX.getString() + Message.HELP_DEBUG.getString());
+        }
+    }
+
+    /**
+     * 调试追踪日志：仅在 {@link #debugTrace} 开启时输出。
+     * 写到控制台，并转发给所有在线且持有 bbstoper.debug 权限的玩家。
+     */
+    public static void trace(String msg) {
+        if (!debugTrace || msg == null) {
+            return;
+        }
+        KBBSToperCore.logger().info("[debug] " + msg);
+        String colored = KBBSToperCore.platform().colorize("&7[debug] " + msg);
+        for (PlatformPlayer p : KBBSToperCore.platform().getOnlinePlayers()) {
+            if (p.hasPermission("bbstoper.debug")) {
+                p.sendMessage(colored);
+            }
         }
     }
 
@@ -103,7 +134,7 @@ public class DebugCommandHandler implements CommandHandler {
     @Override
     public List<String> tabComplete(PlatformSender sender, String[] args) {
         if (args.length == 2) {
-            return Arrays.asList("clear", "status", "simulate");
+            return Arrays.asList("clear", "status", "simulate", "open");
         }
         return null;
     }

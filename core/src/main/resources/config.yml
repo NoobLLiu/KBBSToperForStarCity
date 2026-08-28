@@ -12,7 +12,7 @@
 # 注意: 本字段必须与 build.gradle 的 version 一致!
 # ConfigManager 每次启动比对: 不一致会把本文件与 lang.yml 重置为内置模板(旧文件备份为 *_old.yml)
 # 之前 A1 -> A2 忘了同步, 导致每次启动都重置配置; 现已对齐
-version: 3.7.4_A5
+version: 3.7.4_A6
 
 #DEBUG模式
 debug: false
@@ -150,7 +150,5 @@ reward:
 
     # ---- 星光点发放通道(对接 EssentialsX 经济) ----
     # 优先走 EssentialsX 原生经济 API 直接给玩家加钱(即 Essentials 金钱);
-    # 若服务器未安装 EssentialsX, 自动回退 Vault 经济核心(任何提供 Economy 的插件)。
-    # 缺省 true: 旧配置缺失该键时按内置行为(发放)处理。
-    vault:
-        enable-star-points: true
+    # 若服务器未安装 EssentialsX, 自动回退控制台命令 money give <玩家> <金额>。
+    # (自 v3.7.4_A6 起已移除 Vault 依赖, 不再经 Vault 经济核心。)

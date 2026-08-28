@@ -8,13 +8,11 @@ import mc233.fun.kbbstoper.core.platform.PlatformOfflinePlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformScheduler;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -121,25 +119,23 @@ public class BukkitPlatform implements Platform {
         if (amount <= 0) {
             return;
         }
-        // 1) 优先直接对接 EssentialsX 经济(Essentials 金钱)；无论是否安装 Vault 都能发放
+        // 1) 优先直接对接 EssentialsX 经济(Essentials 金钱)；不可用再回退 /money give 命令
         if (depositEssentials(player, amount)) {
             return;
         }
-        // 2) 回退 Vault 经济核心(任何提供 Economy 服务的插件, 含 Essentials 经 Vault 的提供)
-        RegisteredServiceProvider<Economy> rsp =
-                Bukkit.getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp != null && rsp.getProvider() != null) {
-            // 按玩家名发放(与顶帖绑定名一致); 用 OfflinePlayer 重载(非废弃, 兼容性更好)
-            OfflinePlayer op = Bukkit.getOfflinePlayer(player);
-            rsp.getProvider().depositPlayer(op, amount);
-            return;
+        // 2) EssentialsX 不可用(未安装/异常) → 回退控制台命令 money give <玩家> <金额>
+        String amt = (amount == Math.floor(amount)) ? String.valueOf((long) amount) : String.valueOf(amount);
+        String cmd = "money give " + player + " " + amt;
+        try {
+            dispatchConsoleCommand(cmd);
+        } catch (Throwable t) {
+            logger.warning("发放星光点失败(" + player + ", " + amount + ")，命令 [" + cmd + "] 异常: " + t);
         }
-        logger.warning("未安装 EssentialsX 或 Vault 经济核心，无法给 " + player + " 发放星光点 " + amount);
     }
 
     /**
      * 通过 EssentialsX 原生 API 直接给玩家加钱(星光点 = Essentials 金钱)。
-     * 全部使用全限定名(不 import)，未安装 EssentialsX 或缺口时返回 false 由调用方回退 Vault。
+     * 全部使用全限定名(不 import)，未安装 EssentialsX 或缺口时返回 false 由调用方回退 /money give 命令。
      *
      * @return 是否成功发放
      */
@@ -187,39 +183,6 @@ public class BukkitPlatform implements Platform {
     public MGactivityApi getMGactivityApi() {
         // MGactivity 已实现并注册时返回其实现，否则返回 null（调用方回退命令）
         return Bukkit.getServer().getServicesManager().load(MGactivityApi.class);
-    }
-
-    @Override
-    public void applyMaxHealth(String player, int maxHealth) {
-        if (maxHealth <= 0) {
-            return;
-        }
-        Player p = Bukkit.getPlayerExact(player);
-        if (p == null) {
-            return;
-        }
-        org.bukkit.attribute.AttributeInstance attr = p.getAttribute(findMaxHealthAttribute());
-        if (attr == null) {
-            return;
-        }
-        attr.setBaseValue(maxHealth);
-        // 当前血量高于新上限时钳制, 避免残留高血量
-        if (p.getHealth() > maxHealth) {
-            p.setHealth(maxHealth);
-        }
-    }
-
-    /** 1.21.x 为 GENERIC_MAX_HEALTH, 更新版本可能更名 MAX_HEALTH, 两者都尝试。 */
-    private org.bukkit.attribute.Attribute findMaxHealthAttribute() {
-        try {
-            return org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH");
-        } catch (IllegalArgumentException e) {
-            try {
-                return org.bukkit.attribute.Attribute.valueOf("MAX_HEALTH");
-            } catch (IllegalArgumentException ignore) {
-                return null;
-            }
-        }
     }
 
     @Override

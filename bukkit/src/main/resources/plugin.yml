@@ -25,7 +25,7 @@ commands:
             /bt check bbsid <论坛ID> - 查看一个论坛id的绑定者
             /bt check player <玩家ID> - 查看一个玩家绑定的论坛id
             /bt delete player <玩家ID> - 删除一个玩家的数据
-            /bt debug <clear|status|simulate> - OP调试指令
+            /bt debug <clear|status|simulate|open> - OP调试指令( open 切换检测过程追踪日志)
             /bt reload - 重载插件
 permissions:
     bbstoper.admin:
