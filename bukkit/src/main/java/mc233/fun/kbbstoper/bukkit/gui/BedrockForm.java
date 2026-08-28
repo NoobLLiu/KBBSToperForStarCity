@@ -14,27 +14,59 @@ import mc233.fun.kbbstoper.core.sql.SQLer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
- * 基岩版(Geyser)玩家的原生表单（v2 最终稿，多级表单）。
+ * 基岩版(Geyser)玩家的原生表单（v3 反射版）。
  *
- * <p>设计目标：让通过 Geyser 接入的基岩版玩家收到和 Java 版一致的多级菜单，
- * 而不是只能看 Geyser 翻译出来的箱子界面（铁砧输入在基岩版上尤其难用）。
- * 表单内容/动作与 Nukkit 端的 {@code FormRouter} 一致，所有动作都走
- * {@link mc233.fun.kbbstoper.core.CLI#onCommand} 同一路径，因此冷却、权限、二次确认全部生效。</p>
+ * <p>v3 关键改动：<b>不再直接引用任何 Cumulus 类型</b>。表单构造与发送全部走反射，
+ * 且所用类一律从 {@code GeyserApi.sendForm(UUID, Form)} 签名里的 {@code Form} 类型
+ * 的类加载器（即 Geyser 自己的类加载器）加载。</p>
  *
- * <p>关键约束：本类<b>不直接 import</b> 任何 Geyser/Cumulus 类（全部用全限定名写在方法体内）。
- * 这样即使服务端没装 Geyser，本插件也能正常加载，Java 版玩家走 {@link GUI}，
- * 基岩版检测失败也只是回退到 Java 界面。所有 Geyser 调用都包在 try/catch 里，
- * 发送失败会自动回退到 {@link GUI#openMain}。</p>
+ * <p>原因：Geyser-Spigot 内置了 Cumulus，而服务器上其它插件（如 Floodgate、或任何
+ * shade 过 cumulus 的插件）也可能内置 Cumulus。插件若直接引用
+ * {@code org.geysermc.cumulus.form.Form}，Bukkit 的类加载器会从"另一个插件"里解析到
+ * <b>不同的</b> {@code Form} Class 对象，与 {@code GeyserApi.sendForm} 签名里的
+ * {@code Form} 形成双份类，触发
+ * {@code loader constraint violation ... have different Class objects for the type
+ * org.geysermc.cumulus.form.Form}。</p>
+ *
+ * <p>v3 之后发出去的 Form 对象必然是 Geyser 的 Form，与 {@code GeyserApi} 签名一致，
+ * 不再冲突。发送失败仍安全回退 {@link GUI#openMain}；Geyser 未安装时本类正常加载。</p>
  */
 public final class BedrockForm {
 
     /** 基岩版每页行数（表单行高有限，比 JAVA 少）。 */
     private static final int PAGE_SIZE = 12;
+
+    /** GeyserApi.sendForm(UUID, Form) 反射句柄。 */
+    private static Method SEND_FORM;
+    /** GeyserApi.sendForm 签名里的 Form 类型（Geyser 自己加载的那份，作为一切 Cumulus 类的加载源头）。 */
+    private static Class<?> FORM_TYPE;
+    /** GeyserApi.api() 静态访问器。 */
+    private static Method GEYSER_API_INSTANCE;
+
+    static {
+        try {
+            Class<?> apiClass = Class.forName("org.geysermc.geyser.api.GeyserApi");
+            GEYSER_API_INSTANCE = apiClass.getMethod("api");
+            for (Method m : apiClass.getMethods()) {
+                if ("sendForm".equals(m.getName()) && m.getParameterCount() == 2
+                        && m.getParameterTypes()[0] == UUID.class
+                        && "org.geysermc.cumulus.form.Form".equals(m.getParameterTypes()[1].getName())) {
+                    SEND_FORM = m;
+                    FORM_TYPE = m.getParameterTypes()[1];
+                    break;
+                }
+            }
+        } catch (Throwable ignore) {
+            // Geyser 未安装：SEND_FORM/FORM_TYPE 保持 null，发送时安全回退
+        }
+    }
 
     private BedrockForm() {
     }
@@ -70,11 +102,14 @@ public final class BedrockForm {
             return true;
         }
         try {
-            org.geysermc.geyser.api.GeyserApi api = org.geysermc.geyser.api.GeyserApi.api();
+            Class<?> apiClass = Class.forName("org.geysermc.geyser.api.GeyserApi");
+            Object api = apiClass.getMethod("api").invoke(null);
             if (api == null) {
                 return false;
             }
-            return api.isBedrockPlayer(player.getUniqueId());
+            Object ok = apiClass.getMethod("isBedrockPlayer", UUID.class)
+                    .invoke(api, player.getUniqueId());
+            return Boolean.TRUE.equals(ok);
         } catch (Throwable t) {
             return false;
         }
@@ -82,28 +117,35 @@ public final class BedrockForm {
 
     /**
      * 把表单发给玩家；Geyser/Floodgate 均不可用或发送失败返回 false（调用方应回退到 Java 界面）。
-     *
-     * <p>先走 Geyser-Spigot（Bukkit 端直装 Geyser）；失败时再用反射调用 Floodgate
-     * （Geyser 运行在代理端、Bukkit 端只装 Floodgate 的部署），反射方式不产生编译期依赖。</p>
+     * form 必须是 {@link #FORM_TYPE} 同加载器构造的对象（由 {@link RefForm} 保证）。
      */
-    private static boolean sendForm(Player player, org.geysermc.cumulus.form.Form form) {
+    private static boolean sendForm(Player player, Object form) {
         try {
-            org.geysermc.geyser.api.GeyserApi api = org.geysermc.geyser.api.GeyserApi.api();
-            if (api != null) {
-                return api.sendForm(player.getUniqueId(), form);
+            if (SEND_FORM == null) {
+                return false;
             }
+            Object api = GEYSER_API_INSTANCE.invoke(null);
+            if (api == null) {
+                return false;
+            }
+            Object ok = SEND_FORM.invoke(api, player.getUniqueId(), form);
+            return ok == null || Boolean.TRUE.equals(ok);
         } catch (Throwable t) {
-            KBBSToperCore.logger().warning("Geyser 发送基岩表单失败: " + t.getMessage());
+            KBBSToperCore.logger().warning("Geyser 发送基岩表单失败: " + t);
+            return sendFloodgate(player, form);
         }
+    }
+
+    /** 代理端 Geyser + Floodgate 部署的兜底通道（反射，零编译期依赖）。 */
+    private static boolean sendFloodgate(Player player, Object form) {
         try {
             Class<?> apiClass = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
             Object api = apiClass.getMethod("getInstance").invoke(null);
             if (api == null) {
                 return false;
             }
-            Object ok = apiClass.getMethod("sendForm", UUID.class, org.geysermc.cumulus.form.Form.class)
+            Object ok = apiClass.getMethod("sendForm", UUID.class, FORM_TYPE)
                     .invoke(api, player.getUniqueId(), form);
-            // void 返回(null)视为成功; 显式 false 才视为失败
             return ok == null || Boolean.TRUE.equals(ok);
         } catch (Throwable t) {
             return false;
@@ -122,6 +164,123 @@ public final class BedrockForm {
     private static void runCommand(Player player, String... args) {
         Bukkit.getScheduler().runTask(KBBSToperBukkit.getInstance(),
                 () -> KBBSToperCore.cli().onCommand(BukkitSender.of(player), args));
+    }
+
+    /** 从 Geyser 的类加载器加载 Cumulus 类（与 GeyserApi.sendForm 签名里的 Form 同源）。 */
+    private static Class<?> load(String name) throws ClassNotFoundException {
+        ClassLoader cl = FORM_TYPE != null
+                ? FORM_TYPE.getClassLoader()
+                : org.geysermc.geyser.api.GeyserApi.class.getClassLoader();
+        return Class.forName(name, true, cl);
+    }
+
+    /** 从 SimpleFormResponse（Geyser 的类）反射读取点击的按钮索引。 */
+    private static int clickedId(Object resp) {
+        try {
+            return (int) resp.getClass().getMethod("clickedButtonId").invoke(resp);
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /** 从 CustomFormResponse（Geyser 的类）反射读取下一个输入值。 */
+    private static String nextInput(Object resp) {
+        try {
+            return (String) resp.getClass().getMethod("next").invoke(resp);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * 反射版表单构造器（不引用任何 Cumulus 类型）。
+     * 所有方法调用均落在 {@link #FORM_TYPE} 的类加载器上，保证产物是 Geyser 的 Form。
+     */
+    private static final class RefForm {
+
+        private final Object builder;
+        private final Class<?> cls;
+
+        private RefForm(String formClassName) {
+            try {
+                Class<?> fc = load(formClassName);
+                this.builder = fc.getMethod("builder").invoke(null);
+                this.cls = builder.getClass();
+            } catch (Throwable t) {
+                throw new IllegalStateException("构造表单失败: " + formClassName, t);
+            }
+        }
+
+        static RefForm simple(String title, String content) {
+            return new RefForm("org.geysermc.cumulus.form.SimpleForm")
+                    .title(title).content(content);
+        }
+
+        static RefForm custom(String title) {
+            return new RefForm("org.geysermc.cumulus.form.CustomForm").title(title);
+        }
+
+        RefForm title(String v) {
+            return call("title", v);
+        }
+
+        RefForm content(String v) {
+            return call("content", v);
+        }
+
+        RefForm button(String v) {
+            return call("button", v);
+        }
+
+        RefForm label(String v) {
+            return call("label", v);
+        }
+
+        RefForm input(String label, String placeholder, String def) {
+            try {
+                cls.getMethod("input", String.class, String.class, String.class)
+                        .invoke(builder, label, placeholder, def);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
+            return this;
+        }
+
+        /** 有效提交/按钮点击回调。handler 收到的是 Geyser 的响应对象（用 clickedId/nextInput 反射读取）。 */
+        RefForm onValid(Consumer<Object> handler) {
+            try {
+                cls.getMethod("validResultHandler", Consumer.class).invoke(builder, handler);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
+            return this;
+        }
+
+        RefForm onClose(Runnable r) {
+            try {
+                cls.getMethod("closedOrInvalidResultHandler", Runnable.class).invoke(builder, r);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
+            return this;
+        }
+
+        Object build() {
+            try {
+                return cls.getMethod("build").invoke(builder);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
+        }
+
+        private RefForm call(String method, String arg) {
+            try {
+                cls.getMethod(method, String.class).invoke(builder, arg);
+            } catch (Throwable t) {
+                throw new IllegalStateException(t);
+            }
+            return this;
+        }
     }
 
     // ---------------------------------------------------------------
@@ -147,9 +306,7 @@ public final class BedrockForm {
             content.append(line).append("\n");
         }
 
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(title)
-                .content(fmt(content.toString()));
+        RefForm form = RefForm.simple(title, fmt(content.toString()));
         List<FormAction> actions = new ArrayList<>();
 
         String bindLabel = bound
@@ -185,14 +342,13 @@ public final class BedrockForm {
         actions.add(FormAction.HELP);
 
         final List<FormAction> finalActions = actions;
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
-            int id = resp.clickedButtonId();
-            if (id < 0 || id >= finalActions.size()) {
-                return;
+        form.onValid(resp -> {
+            int id = clickedId(resp);
+            if (id >= 0 && id < finalActions.size()) {
+                dispatch(player, finalActions.get(id));
             }
-            dispatch(player, finalActions.get(id));
         });
-        form.closedOrInvalidResultHandler(() -> {
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -240,18 +396,12 @@ public final class BedrockForm {
 
     public static void openBinding(Player player) {
         KBBSToperCore.scheduler().runSync(() -> {
-            var form = org.geysermc.cumulus.form.CustomForm.builder()
-                    .title(fmt(Message.FORM_BINDING_TITLE.getString("绑定论坛ID")))
+            RefForm form = RefForm.custom(fmt(Message.FORM_BINDING_TITLE.getString("绑定论坛ID")))
                     .label(fmt(Message.FORM_BINDING_LABEL.getString("请输入你的 KLPBBS 论坛用户名（不是 uid）")))
                     .input(fmt(Message.FORM_BINDING_INPUT.getString("论坛ID")),
                             fmt(Message.FORM_BINDING_PLACEHOLDER.getString("在此输入")), "");
-            form.validResultHandler((org.geysermc.cumulus.response.CustomFormResponse resp) -> {
-                String input;
-                try {
-                    input = resp.next();
-                } catch (Throwable t) {
-                    return;
-                }
+            form.onValid(resp -> {
+                String input = nextInput(resp);
                 if (input == null || input.trim().isEmpty()) {
                     player.sendMessage(Message.PREFIX.getString()
                             + Message.FORM_BINDING_EMPTY.getString("&c论坛ID不能为空。"));
@@ -268,7 +418,7 @@ public final class BedrockForm {
                     }
                 }, 10L);
             });
-            form.closedOrInvalidResultHandler(() -> {
+            form.onClose(() -> {
             });
 
             if (!sendForm(player, form.build())) {
@@ -278,7 +428,7 @@ public final class BedrockForm {
     }
 
     // ---------------------------------------------------------------
-    // 我的状态 / 规则 / 宣传帖（只读表单）
+    // 我的状态 / 规则 / 帮助 / 宣传帖（只读表单）
     // ---------------------------------------------------------------
 
     public static void openStatus(Player player) {
@@ -331,12 +481,10 @@ public final class BedrockForm {
 
     /** 一张只读表单 + 一个"返回主菜单"按钮。 */
     private static void openInfo(Player player, String title, List<String> lines) {
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(fmt(title))
-                .content(fmt(lines == null ? "" : String.join("\n", lines)))
+        RefForm form = RefForm.simple(fmt(title), fmt(lines == null ? "" : String.join("\n", lines)))
                 .button(fmt(Message.FORM2_BACK.getString("返回主菜单")));
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> openMain(player));
-        form.closedOrInvalidResultHandler(() -> {
+        form.onValid(resp -> openMain(player));
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -402,9 +550,7 @@ public final class BedrockForm {
                 .replace("%PAGE%", String.valueOf(cur))
                 .replace("%TOTAL%", String.valueOf(total))));
 
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(fmt(title))
-                .content(content.toString());
+        RefForm form = RefForm.simple(fmt(title), content.toString());
         List<FormAction> actions = new ArrayList<>();
         if (cur > 1) {
             form.button(fmt(Message.FORM2_PREV.getString("上一页")));
@@ -418,8 +564,8 @@ public final class BedrockForm {
         actions.add(FormAction.BACK);
 
         final List<FormAction> finalActions = actions;
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
-            int id = resp.clickedButtonId();
+        form.onValid(resp -> {
+            int id = clickedId(resp);
             if (id < 0 || id >= finalActions.size()) {
                 return;
             }
@@ -446,7 +592,7 @@ public final class BedrockForm {
                     break;
             }
         });
-        form.closedOrInvalidResultHandler(() -> {
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -459,9 +605,7 @@ public final class BedrockForm {
     // ---------------------------------------------------------------
 
     public static void openManage(Player player) {
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(fmt(Message.FORM2_MANAGE_TITLE.getString("管理菜单")))
-                .content("");
+        RefForm form = RefForm.simple(fmt(Message.FORM2_MANAGE_TITLE.getString("管理菜单")), "");
         List<FormAction> actions = new ArrayList<>();
 
         addMenu(form, actions, Message.FORM2_MANAGE_TEST.getString("测试奖励"), FormAction.TEST_REWARD);
@@ -473,14 +617,13 @@ public final class BedrockForm {
         addMenu(form, actions, Message.FORM2_BACK.getString("返回主菜单"), FormAction.BACK);
 
         final List<FormAction> finalActions = actions;
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
-            int id = resp.clickedButtonId();
-            if (id < 0 || id >= finalActions.size()) {
-                return;
+        form.onValid(resp -> {
+            int id = clickedId(resp);
+            if (id >= 0 && id < finalActions.size()) {
+                dispatchManage(player, finalActions.get(id));
             }
-            dispatchManage(player, finalActions.get(id));
         });
-        form.closedOrInvalidResultHandler(() -> {
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -488,8 +631,7 @@ public final class BedrockForm {
         }
     }
 
-    private static void addMenu(org.geysermc.cumulus.form.SimpleForm.Builder form,
-                                List<FormAction> actions, String label, FormAction action) {
+    private static void addMenu(RefForm form, List<FormAction> actions, String label, FormAction action) {
         form.button(fmt(label));
         actions.add(action);
     }
@@ -524,9 +666,7 @@ public final class BedrockForm {
 
     /** 测试奖励子菜单：三种类型 + 返回管理菜单。 */
     public static void openTest(Player player) {
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(fmt(Message.FORM2_TEST_TITLE.getString("测试奖励")))
-                .content("");
+        RefForm form = RefForm.simple(fmt(Message.FORM2_TEST_TITLE.getString("测试奖励")), "");
         List<FormAction> actions = new ArrayList<>();
 
         addMenu(form, actions, Message.FORM2_TEST_NORMAL.getString("普通奖励"), FormAction.TEST_NORMAL);
@@ -535,14 +675,13 @@ public final class BedrockForm {
         addMenu(form, actions, Message.FORM2_BACK.getString("返回管理菜单"), FormAction.BACK_MANAGE);
 
         final List<FormAction> finalActions = actions;
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
-            int id = resp.clickedButtonId();
-            if (id < 0 || id >= finalActions.size()) {
-                return;
+        form.onValid(resp -> {
+            int id = clickedId(resp);
+            if (id >= 0 && id < finalActions.size()) {
+                dispatchTest(player, finalActions.get(id));
             }
-            dispatchTest(player, finalActions.get(id));
         });
-        form.closedOrInvalidResultHandler(() -> {
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -571,9 +710,7 @@ public final class BedrockForm {
 
     /** 调试子菜单。 */
     public static void openDebug(Player player) {
-        var form = org.geysermc.cumulus.form.SimpleForm.builder()
-                .title(fmt(Message.FORM2_MANAGE_DEBUG.getString("调试")))
-                .content("");
+        RefForm form = RefForm.simple(fmt(Message.FORM2_MANAGE_DEBUG.getString("调试")), "");
         List<FormAction> actions = new ArrayList<>();
 
         addMenu(form, actions, "清空", FormAction.DEBUG_CLEAR);
@@ -582,14 +719,13 @@ public final class BedrockForm {
         addMenu(form, actions, fmt(Message.FORM2_BACK.getString("返回管理菜单")), FormAction.BACK_MANAGE);
 
         final List<FormAction> finalActions = actions;
-        form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
-            int id = resp.clickedButtonId();
-            if (id < 0 || id >= finalActions.size()) {
-                return;
+        form.onValid(resp -> {
+            int id = clickedId(resp);
+            if (id >= 0 && id < finalActions.size()) {
+                dispatchDebug(player, finalActions.get(id));
             }
-            dispatchDebug(player, finalActions.get(id));
         });
-        form.closedOrInvalidResultHandler(() -> {
+        form.onClose(() -> {
         });
 
         if (!sendForm(player, form.build())) {
@@ -622,17 +758,11 @@ public final class BedrockForm {
 
     public static void openInput(Player player, String inputAction, String title, String label) {
         KBBSToperCore.scheduler().runSync(() -> {
-            var form = org.geysermc.cumulus.form.CustomForm.builder()
-                    .title(fmt(title))
+            RefForm form = RefForm.custom(fmt(title))
                     .label(fmt(Message.FORM2_INPUT_LABEL.getString("请输入:")))
                     .input(fmt(label), fmt(Message.FORM2_INPUT_PLACEHOLDER.getString("在此输入")), "");
-            form.validResultHandler((org.geysermc.cumulus.response.CustomFormResponse resp) -> {
-                String input;
-                try {
-                    input = resp.next();
-                } catch (Throwable t) {
-                    return;
-                }
+            form.onValid(resp -> {
+                String input = nextInput(resp);
                 if (input == null || input.trim().isEmpty()) {
                     player.sendMessage(Message.PREFIX.getString()
                             + Message.FORM2_INPUT_EMPTY.getString("&c输入不能为空。"));
@@ -645,7 +775,7 @@ public final class BedrockForm {
                     runCommand(player, "delete", id);
                 }
             });
-            form.closedOrInvalidResultHandler(() -> {
+            form.onClose(() -> {
             });
 
             if (!sendForm(player, form.build())) {
