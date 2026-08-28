@@ -30,6 +30,7 @@ public enum Message {
     WAITAMIN("waitamin"),
     INTERVALTOOSHORT("intervaltooshort"),
     REWARD("reward"),
+    REWARDSUMMARY("rewardsummary"),
     EXTRAREWARD("extrareward"),
     REWARDGIVED("rewardgived"),
     BROADCAST("broadcast"),

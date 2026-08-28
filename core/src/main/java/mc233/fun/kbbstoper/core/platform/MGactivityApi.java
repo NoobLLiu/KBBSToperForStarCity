@@ -89,4 +89,28 @@ public interface MGactivityApi {
     default void addStarlightPoints(String player, long value) {
         // 默认空实现：MGactivity 未实现时静默（调用方自行决定是否回退 Vault）
     }
+
+    // ---- 可选查询方法（用于奖励提示显示"当前值"）----
+    // 均为 default，MGactivity 未覆写时返回 -1，KBBSToper 的奖励提示会自动省略"当前值"，
+    // 不影响发奖本身。建议实现类覆写以下四个方法（对应其 ActivityManager 现有查询）。
+
+    /** @return 当前成长倍率；未实现返回 -1 */
+    default double getGrowthMultiplier(String player) {
+        return -1;
+    }
+
+    /** @return 当前经验倍率；未实现返回 -1 */
+    default double getExperienceMultiplier(String player) {
+        return -1;
+    }
+
+    /** @return 当前成长值（总活跃值 totalActivity）；未实现返回 -1 */
+    default double getGrowthValue(String player) {
+        return -1;
+    }
+
+    /** @return 当前星光点；未实现返回 -1 */
+    default long getStarlightPoints(String player) {
+        return -1;
+    }
 }

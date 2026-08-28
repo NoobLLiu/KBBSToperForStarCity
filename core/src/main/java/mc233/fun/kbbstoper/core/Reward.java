@@ -231,8 +231,15 @@ public class Reward {
 
         dispatch(name, cmds, starPoints, mg, effect);
 
-        player.sendMessage(Message.PREFIX.getString()
-                + Message.REWARD.getString().replaceAll("%TIME%", crawler.Time.get(index)));
+        // 成长值本次实际发放量(仅当配置了成长值发放命令时)
+        double growthGranted = 0;
+        if (!Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()) {
+            growthGranted += Option.REWARD_VAL_GROWTH.getDouble();
+            if (additional) {
+                growthGranted += Option.REWARD_VAL_ADD_GROWTH.getDouble();
+            }
+        }
+        sendRewardSummary(name, isFirst, isExtra, hpStep, newMaxHp, starPoints, growthGranted);
     }
 
     private static List<String> replacePlayerValue(List<String> list, String name, double value) {
@@ -294,6 +301,74 @@ public class Reward {
             cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, maxHp));
         }
         dispatch(name, cmds, star, mg, effect);
+
+        // 测试奖励同样给出明细提示
+        boolean additional = !"NORMAL".equals(type);
+        int hpStep = additional
+                ? Option.REWARD_VAL_HP_STEP.getInt() + Option.REWARD_VAL_ADD_HP_STEP.getInt()
+                : Option.REWARD_VAL_HP_STEP.getInt();
+        double growthGranted = 0;
+        if (!Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()) {
+            growthGranted = additional ? Option.REWARD_VAL_ADD_GROWTH.getDouble()
+                    : Option.REWARD_VAL_GROWTH.getDouble();
+        }
+        sendRewardSummary(name, true, false, hpStep, maxHp, star, growthGranted);
+    }
+
+    /**
+     * 奖励完成提示：列出本次发放的各奖励明细与当前值。
+     * 成长值/星光点/倍率的"当前值"经 MGactivity 可选查询接口读取，
+     * 未实现（返回 -1）时自动省略，仅显示本次发放量。
+     */
+    private void sendRewardSummary(String name, boolean isFirst, boolean isExtra,
+                                   int hpStep, int newMaxHp, double starPoints,
+                                   double growthGranted) {
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        List<String> parts = new ArrayList<>();
+
+        if (growthGranted > 0) {
+            double cur = (mg != null) ? mg.getGrowthValue(name) : -1;
+            String seg = "成长值 +" + formatValue(growthGranted);
+            if (cur >= 0) {
+                seg += " (当前 " + formatValue(cur + growthGranted) + ")";
+            }
+            parts.add(seg);
+        }
+        if (isFirst) {
+            double set = Option.REWARD_VAL_GROWTH_MULT.getDouble();
+            double cur = (mg != null) ? mg.getGrowthMultiplier(name) : -1;
+            String seg = "成长倍率 x" + formatValue(set);
+            if (cur > 0) {
+                seg += " (当前 x" + formatValue(Math.max(cur, set)) + ")";
+            }
+            parts.add(seg);
+        }
+        if (isExtra) {
+            double set = Option.REWARD_VAL_EXP_MULT.getDouble();
+            double cur = (mg != null) ? mg.getExperienceMultiplier(name) : -1;
+            String seg = "经验倍率 x" + formatValue(set);
+            if (cur > 0) {
+                seg += " (当前 x" + formatValue(Math.max(cur, set)) + ")";
+            }
+            parts.add(seg);
+        }
+        if (hpStep > 0) {
+            parts.add("生命上限 +" + hpStep + " (当前 " + newMaxHp + ")");
+        }
+        if (starPoints > 0) {
+            long cur = (mg != null) ? mg.getStarlightPoints(name) : -1;
+            String seg = "星光点 +" + formatValue(starPoints);
+            if (cur >= 0) {
+                seg += " (当前 " + (cur + (long) starPoints) + ")";
+            }
+            parts.add(seg);
+        }
+
+        String details = parts.isEmpty() ? "无" : String.join(" | ", parts);
+        player.sendMessage(Message.PREFIX.getString()
+                + Message.REWARDSUMMARY.getString()
+                        .replaceAll("%TIME%", crawler.Time.get(index))
+                        .replaceAll("%DETAILS%", details));
     }
 
     /** MGactivity 效果集合(供 dispatch 在主线程判定走 API 还是命令回退)。 */

@@ -45,6 +45,12 @@ public interface MGactivityApi {
     default void addStarlightPoints(String player, long value) {
         // 请覆写为: 委托 ActivityManager.addStarlightPoints(player, value)
     }
+
+    // ---- 可选查询方法（default 返回 -1，供 KBBSToper 奖励提示显示"当前值"）----
+    default double getGrowthMultiplier(String player) { return -1; }
+    default double getExperienceMultiplier(String player) { return -1; }
+    default double getGrowthValue(String player) { return -1; }      // 当前成长值(totalActivity)
+    default long getStarlightPoints(String player) { return -1; }
 }
 ```
 
@@ -61,6 +67,9 @@ public interface MGactivityApi {
 - `player` 为玩家游戏名（与顶帖绑定名一致，可能含中文 / 特殊字符），请确保按名解析正确。
 - 倍率每日清零由 **MGactivity** 负责：KBBSToper 只下发 `set`，不下发 `reset`。
 - `maxhp` 是长期累积属性，KBBSToper 下发的是「已累加并钳制后的绝对值」，MGactivity 直接设为该值即可。
+- **可选查询方法**（`getGrowthMultiplier` / `getExperienceMultiplier` / `getGrowthValue` / `getStarlightPoints`）：
+  建议覆写（default 返回 `-1`）。KBBSToper 奖励完成提示需要展示「当前成长值 / 星光点 / 倍率」时会调用；
+  不覆写则提示中自动省略这些"当前值"，**不影响发奖本身**。对应实现：委托 `ActivityManager` 现有查询（`getGrowthMultiplier` / `getExperienceMultiplier` / `getPlayerData(name).getTotalActivity()` / `getStarlightPoints`）。
 
 ---
 
