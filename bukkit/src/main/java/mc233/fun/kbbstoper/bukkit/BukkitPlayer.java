@@ -1,5 +1,6 @@
 package mc233.fun.kbbstoper.bukkit;
 
+import mc233.fun.kbbstoper.bukkit.gui.BedrockForm;
 import mc233.fun.kbbstoper.bukkit.gui.GUI;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import org.bukkit.entity.Player;
@@ -38,7 +39,12 @@ public class BukkitPlayer extends BukkitSender implements PlatformPlayer {
 
     @Override
     public void openMainMenu() {
-        GUI.openMain(player());
+        // 经 Geyser 接入的基岩版玩家收到原生表单；其余走 Java 箱子界面
+        if (BedrockForm.isBedrock(player())) {
+            BedrockForm.openMain(player());
+        } else {
+            GUI.openMain(player());
+        }
     }
 
     @Override

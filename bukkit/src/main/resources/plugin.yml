@@ -5,7 +5,7 @@ api-version: '1.21'
 author:
     - Fengshuai(R_Josef)
     - mincHR549
-softdepend: [PlaceholderAPI]
+softdepend: [PlaceholderAPI, Geyser-Spigot]
 libraries:
     - org.jsoup:jsoup:1.17.2
     - org.xerial:sqlite-jdbc:3.45.3.0

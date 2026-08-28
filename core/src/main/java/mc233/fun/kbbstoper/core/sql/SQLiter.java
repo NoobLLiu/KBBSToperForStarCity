@@ -65,7 +65,7 @@ public class SQLiter extends SQLer {
 
     protected void createTablePosters() {
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 30, PRIMARY KEY (`uuid`) );",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, PRIMARY KEY (`uuid`) );",
                 getTableName("posters"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
@@ -79,7 +79,7 @@ public class SQLiter extends SQLer {
     private void migrateMaxHpColumn() {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("ALTER TABLE `" + getTableName("posters")
-                    + "` ADD COLUMN `maxhp` int(0) NOT NULL DEFAULT 30");
+                    + "` ADD COLUMN `maxhp` int(0) NOT NULL DEFAULT 20");
         } catch (SQLException ignored) {
             // 列已存在(duplicate column)或驱动不支持时静默跳过
         }

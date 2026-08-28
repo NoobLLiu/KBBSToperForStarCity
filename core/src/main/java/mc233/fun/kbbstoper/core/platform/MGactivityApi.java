@@ -33,7 +33,7 @@ package mc233.fun.kbbstoper.core.platform;
  * <h2>语义约定（务必遵守）</h2>
  * <ul>
  *   <li>倍率（growth / experience）：<b>不叠加，取最大值</b>；每日由 MGactivity 自动归位基准值（通常 1.0）。</li>
- *   <li>maxhp：KBBSToper 下发的是<b>已累加并钳制后的绝对值</b>（整数，约定范围 [30, 50]），
+ *   <li>maxhp：KBBSToper 下发的是<b>已累加并钳制后的绝对值</b>（整数，约定范围 [20, 50]），
  *       应绝对值写入并持久化，跨天保留，不要每日清零。</li>
  *   <li>streakbreak：<b>增量</b>累加，立即生效。</li>
  *   <li>玩家名与顶帖绑定名一致；含中文/特殊字符时必须可正确解析。</li>
@@ -64,7 +64,7 @@ public interface MGactivityApi {
      * 设置玩家生命值上限（绝对值写入，跨天保留）。
      *
      * @param player 玩家名
-     * @param value  生命值上限，有效范围由 MGactivity 钳制（StarCity 约定 [30, 50]）
+     * @param value  生命值上限，有效范围由 MGactivity 钳制（StarCity 约定 [20, 50]）
      */
     void setMaxHp(String player, int value);
 

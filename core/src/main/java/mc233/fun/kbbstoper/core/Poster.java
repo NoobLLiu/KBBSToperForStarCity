@@ -16,8 +16,8 @@ public class Poster {
     private String rewardbefore = "";
     private int rewardtime = 0;
     private int count = 0;
-    /** 当前生命值上限(由 KBBSToper 累加 HP 步长后经 MGactivity 钳制持久化)。 */
-    private int maxhp = 30;
+    /** 当前生命值上限。未顶过帖的玩家初始(最低)为 20，随顶帖累加，由 MGactivity 钳制持久化。 */
+    private int maxhp = 20;
 
     public static void setSQLer(SQLer sql) {
         Poster.sql = sql;

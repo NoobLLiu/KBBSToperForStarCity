@@ -114,7 +114,7 @@ reward:
         growth-multiplier: 1.25        # 首顶: 当日成长值倍率
         experience-multiplier: 1.25    # 额外: 当日经验值倍率
         hp-step: 2                     # 首顶奖励 生命值上限 +2(额外顶贴不加 HP)
-        hp-base: 30                    # 生命值下限(基准)
+        hp-base: 20                    # 生命值下限(初始/基准): 未顶过帖的玩家初始上限=20
         hp-hard-cap: 50                # 生命值上限(一排半爱心, +30)
         growth-per-reward: 100         # 每次普通奖励 成长值 +100
         additional-hp-step: 2          # 附加奖励额外 生命值上限 +2
