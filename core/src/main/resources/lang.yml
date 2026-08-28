@@ -212,6 +212,7 @@ gui2:
     anvil:
         title: '&b&l绑定论坛ID'
         guide: '&7在改名槽输入论坛ID, 点击输出物品确认'
+        guide-player: '&7在改名槽输入玩家游戏ID, 点击输出物品确认'
         invalid: '&4论坛ID不合法: 仅允许字母/数字/下划线/中文, 长度1-32!'
         confirm: '&7再输入一次相同ID完成确认'
 

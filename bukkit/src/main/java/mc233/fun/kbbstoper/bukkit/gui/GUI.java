@@ -387,7 +387,7 @@ public final class GUI {
 
     public static void openDeleteAnvil(Player player) {
         AnvilInput.open(player, Message.GUI2_MANAGE_DELETE.getString(),
-                Message.GUI2_ANVIL_GUIDE.getString(),
+                Message.GUI2_ANVIL_GUIDE_PLAYER.getString(),
                 id -> KBBSToperCore.cli().handleDirect(BukkitSender.of(player), new String[]{"delete", id}));
     }
 

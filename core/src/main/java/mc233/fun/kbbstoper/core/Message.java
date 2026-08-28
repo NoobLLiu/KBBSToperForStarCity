@@ -138,6 +138,7 @@ public enum Message {
     GUI2_PAGE("gui2.page"),
     GUI2_ANVIL_TITLE("gui2.anvil.title"),
     GUI2_ANVIL_GUIDE("gui2.anvil.guide"),
+    GUI2_ANVIL_GUIDE_PLAYER("gui2.anvil.guide-player"),
     GUI2_ANVIL_INVALID("gui2.anvil.invalid"),
     GUI2_ANVIL_CONFIRM("gui2.anvil.confirm"),
     // ---- 基岩版新表单（v2 最终稿）----

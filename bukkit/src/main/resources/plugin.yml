@@ -40,6 +40,7 @@ permissions:
             bbstoper.delete: true
             bbstoper.debug: true
             bbstoper.bypassquerycooldown: true
+            bbstoper.manage: true
     bbstoper.user:
         description: '用户权限.'
         default: true
@@ -60,7 +61,8 @@ permissions:
         default: 'op'
     bbstoper.top:
         description: '将所有玩家按照顶贴次数排序.'
-        default: 'op'
+        # v2 GUI: 排行榜对玩家开放只读(GUI 内直接展示), 管理员仍持有
+        default: true
     bbstoper.bypassquerycooldown:
         description: '绕过查询冷却.'
         default: 'op'
@@ -75,4 +77,7 @@ permissions:
         default: 'op'
     bbstoper.reload:
         description: '重载插件.'
+        default: 'op'
+    bbstoper.manage:
+        description: '打开GUI管理菜单(v2).'
         default: 'op'
