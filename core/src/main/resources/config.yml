@@ -12,7 +12,7 @@
 # 注意: 本字段必须与 build.gradle 的 version 一致!
 # ConfigManager 每次启动比对: 不一致会把本文件与 lang.yml 重置为内置模板(旧文件备份为 *_old.yml)
 # 之前 A1 -> A2 忘了同步, 导致每次启动都重置配置; 现已对齐
-version: 3.7.4_A2
+version: 3.7.4_A3
 
 #DEBUG模式
 debug: false
@@ -119,7 +119,7 @@ reward:
         growth-per-reward: 100         # 每次普通奖励 成长值 +100
         additional-hp-step: 2          # 附加奖励额外 生命值上限 +2
         additional-growth: 100         # 附加奖励 成长值 +100
-        star-points: 300               # 附加奖励 星光点(走 Vault)
+        star-points: 300               # 附加奖励 星光点(对接 EssentialsX 经济, 即 Essentials 金钱)
         streak-break-daily: 2          # 连签中断每日下降 2
 
     # ---- MGactivity 导出接口命令模板 ----
@@ -133,8 +133,8 @@ reward:
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         # 连签中断(收到即扣减)
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
-        # 星光点是否优先走 MGactivity Java API(addStarlightPoints, 增量累加)
-        # 接口不可用(未注册/未覆写)或此处关闭时, 自动回退 reward.vault 的 Vault 经济发放
+        # 星光点是否走 MGactivity Java API(addStarlightPoints)—— 已弃用
+        # 自 v3.7.4_A3 起, 星光点统一直接对接 EssentialsX 经济(见 reward.vault), 不再经 MGactivity
         enable-star-points: true
 
     # ---- 成长值 +100 的发放指令 ----
@@ -148,7 +148,9 @@ reward:
     additional:
         enable: true
 
-    # ---- 星光点回退通道(Vault 经济核心, 不用命令) ----
-    # 仅当 MGactivity API 通道不可用(见 reward.mgactivity.enable-star-points)时启用
+    # ---- 星光点发放通道(对接 EssentialsX 经济) ----
+    # 优先走 EssentialsX 原生经济 API 直接给玩家加钱(即 Essentials 金钱);
+    # 若服务器未安装 EssentialsX, 自动回退 Vault 经济核心(任何提供 Economy 的插件)。
+    # 缺省 true: 旧配置缺失该键时按内置行为(发放)处理。
     vault:
         enable-star-points: true

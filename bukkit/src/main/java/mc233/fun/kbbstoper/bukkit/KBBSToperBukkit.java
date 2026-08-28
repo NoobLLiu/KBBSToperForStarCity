@@ -53,6 +53,21 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
 
         loadGuiConfig();
 
+        // 基岩版(Geyser)表单检测日志: 便于确认基岩玩家能否收到原生表单。
+        // Geyser-Spigot 装在本服时 GeyserApi 可用; 代理端 Geyser + Floodgate 部署时,
+        // 检测走 UUID 前缀(00000000-0000-0000-0009), 发送走 Floodgate 反射通道。
+        boolean geyserReady = false;
+        try {
+            geyserReady = org.geysermc.geyser.api.GeyserApi.api() != null;
+        } catch (Throwable ignore) {
+            // Geyser 未安装
+        }
+        if (geyserReady) {
+            getLogger().info("已检测到 Geyser API: 基岩版玩家将收到原生表单");
+        } else {
+            getLogger().info("未检测到 Geyser API: 基岩版玩家走 UUID 前缀识别(Geyser 在代理端时经 Floodgate 发送), 否则回退 Java 界面");
+        }
+
         // Bukkit 端用聊天监听收集论坛 ID，绑定结束时要注销监听
         BindingSession.Holder.set(new BindingSession() {
             @Override

@@ -388,7 +388,6 @@ public class Reward {
         final double sp = starPoints;
         final MGactivityApi m = mg;
         final MgEffect e = effect;
-        final boolean vaultStar = Option.REWARD_VAULT_STAR.getBoolean();
         KBBSToperCore.scheduler().runSync(() -> {
             if (m != null) {
                 if (e.growth()) {
@@ -408,12 +407,10 @@ public class Reward {
                 }
             }
             if (sp > 0) {
-                // 星光点优先走 MGactivity Java API(addStarlightPoints);
-                // 接口不可用或配置关闭时回退 Vault 经济(depositEconomy)
-                // 缺省 true: 旧版配置里没有这个键时, 按内置模板的行为(走 API)处理
-                if (m != null && Option.REWARD_MG_STAR_ENABLE.getBoolean(true)) {
-                    m.addStarlightPoints(n, (long) sp);
-                } else if (vaultStar) {
+                // 星光点直接对接 EssentialsX 经济(优先 EssentialsX 金钱, 回退 Vault)。
+                // 旧 MGactivity addStarlightPoints 通道已弃用(原实现无效, 不入账)。
+                // reward.vault.enable-star-points 缺省 true: 旧配置缺失该键时按内置行为(发放)处理
+                if (Option.REWARD_VAULT_STAR.getBoolean(true)) {
                     KBBSToperCore.platform().depositEconomy(n, sp);
                 }
             }

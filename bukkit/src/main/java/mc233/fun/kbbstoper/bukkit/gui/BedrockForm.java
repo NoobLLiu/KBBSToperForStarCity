@@ -41,7 +41,7 @@ public final class BedrockForm {
 
     /** 表单动作（与 Nukkit 端 FormRouter 对齐）。 */
     private enum FormAction {
-        BINDING, REWARD, MY_RECORDS, MY_STATUS, TOP, POST, RULES, MANAGE,
+        BINDING, REWARD, MY_RECORDS, MY_STATUS, TOP, POST, RULES, MANAGE, HELP,
         PREV_PAGE, NEXT_PAGE, BACK,
         TEST_REWARD, TEST_NORMAL, TEST_INCENTIVE, TEST_OFFDAY,
         LIST, CHECK, DELETE, RELOAD, DEBUG,
@@ -53,8 +53,22 @@ public final class BedrockForm {
     // 基岩版检测
     // ---------------------------------------------------------------
 
-    /** 该玩家是否经 Geyser 接入的基岩版。Geyser 未安装/未就绪时安全返回 false。 */
+    /**
+     * 该玩家是否经 Geyser 接入的基岩版。Geyser 未安装/未就绪时安全返回 false。
+     *
+     * <p>判定优先级：</p>
+     * <ol>
+     *   <li>UUID 前缀：Floodgate/Geyser 为基岩玩家分配的 UUID 前 4 段固定为
+     *       {@code 00000000-0000-0000-0009}，不依赖任何 API 即可判定（覆盖
+     *       Geyser-Spigot 与「代理端 Geyser + Floodgate」两种部署）；</li>
+     *   <li>Geyser API：{@code GeyserApi.api().isBedrockPlayer(uuid)}。</li>
+     * </ol>
+     */
     public static boolean isBedrock(Player player) {
+        String uuid = player.getUniqueId().toString();
+        if (uuid.startsWith("00000000-0000-0000-0009")) {
+            return true;
+        }
         try {
             org.geysermc.geyser.api.GeyserApi api = org.geysermc.geyser.api.GeyserApi.api();
             if (api == null) {
@@ -66,16 +80,32 @@ public final class BedrockForm {
         }
     }
 
-    /** 把表单发给玩家；Geyser 不可用或发送失败返回 false（调用方应回退到 Java 界面）。 */
+    /**
+     * 把表单发给玩家；Geyser/Floodgate 均不可用或发送失败返回 false（调用方应回退到 Java 界面）。
+     *
+     * <p>先走 Geyser-Spigot（Bukkit 端直装 Geyser）；失败时再用反射调用 Floodgate
+     * （Geyser 运行在代理端、Bukkit 端只装 Floodgate 的部署），反射方式不产生编译期依赖。</p>
+     */
     private static boolean sendForm(Player player, org.geysermc.cumulus.form.Form form) {
         try {
             org.geysermc.geyser.api.GeyserApi api = org.geysermc.geyser.api.GeyserApi.api();
+            if (api != null) {
+                return api.sendForm(player.getUniqueId(), form);
+            }
+        } catch (Throwable t) {
+            KBBSToperCore.logger().warning("Geyser 发送基岩表单失败: " + t.getMessage());
+        }
+        try {
+            Class<?> apiClass = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
             if (api == null) {
                 return false;
             }
-            return api.sendForm(player.getUniqueId(), form);
+            Object ok = apiClass.getMethod("sendForm", UUID.class, org.geysermc.cumulus.form.Form.class)
+                    .invoke(api, player.getUniqueId(), form);
+            // void 返回(null)视为成功; 显式 false 才视为失败
+            return ok == null || Boolean.TRUE.equals(ok);
         } catch (Throwable t) {
-            KBBSToperCore.logger().warning("发送基岩表单失败: " + t.getMessage());
             return false;
         }
     }
@@ -151,6 +181,9 @@ public final class BedrockForm {
             actions.add(FormAction.MANAGE);
         }
 
+        form.button(fmt(Message.GUI2_HELP_TITLE.getString("帮助")));
+        actions.add(FormAction.HELP);
+
         final List<FormAction> finalActions = actions;
         form.validResultHandler((org.geysermc.cumulus.response.SimpleFormResponse resp) -> {
             int id = resp.clickedButtonId();
@@ -189,6 +222,9 @@ public final class BedrockForm {
                 break;
             case RULES:
                 openRules(player);
+                break;
+            case HELP:
+                openHelp(player);
                 break;
             case MANAGE:
                 openManage(player);
@@ -257,6 +293,22 @@ public final class BedrockForm {
         List<String> lines = GuiDataResolver.rulesLines();
         KBBSToperCore.scheduler().runSync(() ->
                 openInfo(player, Message.FORM2_RULES_TITLE.getString("活动规则"), lines));
+    }
+
+    /** 帮助（指令速查，与 Java 版 GUI.openHelp 内容一致）。 */
+    public static void openHelp(Player player) {
+        List<String> lines = List.of(
+                Message.GUI2_HELP_HELP.getString(),
+                Message.GUI2_HELP_BINDING.getString(),
+                Message.GUI2_HELP_REWARD.getString(),
+                Message.GUI2_HELP_LIST.getString(),
+                Message.GUI2_HELP_TOP.getString(),
+                Message.GUI2_HELP_CHECK.getString(),
+                Message.GUI2_HELP_DELETE.getString(),
+                Message.GUI2_HELP_RELOAD.getString(),
+                Message.GUI2_HELP_DEBUG.getString());
+        KBBSToperCore.scheduler().runSync(() ->
+                openInfo(player, Message.GUI2_HELP_TITLE.getString("帮助"), lines));
     }
 
     public static void openPost(Player player) {

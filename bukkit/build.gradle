@@ -13,6 +13,8 @@ dependencies {
     compileOnly 'org.geysermc.geyser:api:2.9.0-SNAPSHOT'
     // Cumulus 表单库（SimpleForm/CustomForm/ModalForm），Geyser API 的 sendForm 需要它
     compileOnly 'org.geysermc.cumulus:cumulus:1.1.2'
+    // EssentialsX 经济 API（v2，2.19+）。星光点优先直接对接 Essentials 金钱；仅编译期需要，运行时由 Essentials 提供
+    compileOnly 'net.essentialsx:EssentialsX:2.21.2'
 }
 
 processResources {

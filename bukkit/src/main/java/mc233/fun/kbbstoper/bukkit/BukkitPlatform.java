@@ -121,14 +121,66 @@ public class BukkitPlatform implements Platform {
         if (amount <= 0) {
             return;
         }
-        RegisteredServiceProvider<Economy> rsp =
-                Bukkit.getServer().getServicesManager().getRegistration(Economy.class);
-        if (rsp == null || rsp.getProvider() == null) {
-            logger.warning("Vault 经济核心未安装，无法给 " + player + " 发放星光点 " + amount);
+        // 1) 优先直接对接 EssentialsX 经济(Essentials 金钱)；无论是否安装 Vault 都能发放
+        if (depositEssentials(player, amount)) {
             return;
         }
-        // 按玩家名发放(与顶帖绑定名一致); Vault 的 String 重载虽标注废弃但兼容性最好
-        rsp.getProvider().depositPlayer(player, amount);
+        // 2) 回退 Vault 经济核心(任何提供 Economy 服务的插件, 含 Essentials 经 Vault 的提供)
+        RegisteredServiceProvider<Economy> rsp =
+                Bukkit.getServer().getServicesManager().getRegistration(Economy.class);
+        if (rsp != null && rsp.getProvider() != null) {
+            // 按玩家名发放(与顶帖绑定名一致); 用 OfflinePlayer 重载(非废弃, 兼容性更好)
+            OfflinePlayer op = Bukkit.getOfflinePlayer(player);
+            rsp.getProvider().depositPlayer(op, amount);
+            return;
+        }
+        logger.warning("未安装 EssentialsX 或 Vault 经济核心，无法给 " + player + " 发放星光点 " + amount);
+    }
+
+    /**
+     * 通过 EssentialsX 原生 API 直接给玩家加钱(星光点 = Essentials 金钱)。
+     * 全部使用全限定名(不 import)，未安装 EssentialsX 或缺口时返回 false 由调用方回退 Vault。
+     *
+     * @return 是否成功发放
+     */
+    @SuppressWarnings("deprecation")
+    private boolean depositEssentials(String player, double amount) {
+        try {
+            org.bukkit.plugin.Plugin ess = Bukkit.getPluginManager().getPlugin("Essentials");
+            if (!(ess instanceof com.earth2me.essentials.Essentials)) {
+                return false;
+            }
+            com.earth2me.essentials.Essentials essentials = (com.earth2me.essentials.Essentials) ess;
+            UUID uuid = resolveUuid(player);
+            if (uuid == null) {
+                return false;
+            }
+            // getUser 按 UUID 取/建账号, 再走静态 API 的 add(User, BigDecimal)
+            com.earth2me.essentials.User user = essentials.getUser(uuid);
+            if (user == null) {
+                return false;
+            }
+            com.earth2me.essentials.api.Economy.add(user, java.math.BigDecimal.valueOf(amount));
+            return true;
+        } catch (Throwable t) {
+            logger.warning("EssentialsX 发放星光点失败(" + player + ", " + amount + "): " + t);
+            return false;
+        }
+    }
+
+    /** 优先用在线玩家精确匹配解析 UUID, 否则回退 OfflinePlayer。 */
+    @SuppressWarnings("deprecation")
+    private UUID resolveUuid(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            return online.getUniqueId();
+        }
+        try {
+            OfflinePlayer op = Bukkit.getOfflinePlayer(name);
+            return op.getUniqueId();
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     @Override
