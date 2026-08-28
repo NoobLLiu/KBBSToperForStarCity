@@ -1,8 +1,6 @@
 package mc233.fun.kbbstoper.bukkit;
 
 import mc233.fun.kbbstoper.bukkit.gui.GUI;
-import mc233.fun.kbbstoper.bukkit.gui.GUIManager;
-import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import org.bukkit.entity.Player;
 
@@ -34,13 +32,13 @@ public class BukkitPlayer extends BukkitSender implements PlatformPlayer {
 
     @Override
     public void openBindingInput() {
-        // Bukkit 端沿用可点击的聊天补全 + 临时聊天监听
-        GUIManager.sendBindingSuggestion(player());
+        // Bukkit 端 v2 改用铁砧界面输入论坛ID
+        GUI.openBindingAnvil(player());
     }
 
     @Override
     public void openMainMenu() {
-        new GUI(player(), KBBSToperCore.configManager());
+        GUI.openMain(player());
     }
 
     @Override

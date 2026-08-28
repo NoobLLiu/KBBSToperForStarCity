@@ -14,7 +14,7 @@ import mc233.fun.kbbstoper.nukkit.NukkitSender;
 
 import java.util.List;
 
-/** 表单回应处理。 */
+/** 表单回应处理（v2 最终稿，多级表单）。 */
 public class FormListener implements Listener {
 
     @EventHandler
@@ -36,11 +36,24 @@ public class FormListener implements Listener {
             case FormRouter.PendingForm.TYPE_BINDING:
                 handleBinding(player, event);
                 break;
+            case FormRouter.PendingForm.TYPE_PAGED:
+                handlePaged(player, pending, event);
+                break;
+            case FormRouter.PendingForm.TYPE_MENU:
+                handleMenu(player, pending, event);
+                break;
+            case FormRouter.PendingForm.TYPE_INPUT:
+                handleInput(player, pending, event);
+                break;
             default:
                 // 只读表单，无需处理
                 break;
         }
     }
+
+    // ---------------------------------------------------------------
+    // 主界面
+    // ---------------------------------------------------------------
 
     private void handleMain(Player player, FormRouter.PendingForm pending, PlayerFormRespondedEvent event) {
         if (!(event.getResponse() instanceof FormResponseSimple)) {
@@ -64,16 +77,32 @@ public class FormListener implements Listener {
             case REWARD:
                 cli.onCommand(NukkitSender.of(player), new String[]{"reward"});
                 break;
+            case MY_RECORDS:
+                FormRouter.openRecordsForm(player, 1);
+                break;
+            case MY_STATUS:
+                FormRouter.openStatusForm(player);
+                break;
             case TOP:
-                cli.onCommand(NukkitSender.of(player), new String[]{"top"});
+                FormRouter.openTopForm(player, 1);
                 break;
             case POST:
                 FormRouter.openPostForm(player);
+                break;
+            case RULES:
+                FormRouter.openRulesForm(player);
+                break;
+            case MANAGE:
+                FormRouter.openManageForm(player);
                 break;
             default:
                 player.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
         }
     }
+
+    // ---------------------------------------------------------------
+    // 绑定输入
+    // ---------------------------------------------------------------
 
     private void handleBinding(Player player, PlayerFormRespondedEvent event) {
         if (!(event.getResponse() instanceof FormResponseCustom)) {
@@ -92,12 +121,9 @@ public class FormListener implements Listener {
             return;
         }
         // 走与命令完全相同的路径，因此二次确认、冷却、重复绑定检查全部生效。
-        // 表单只能一次拿到一个值，所以第一次提交会提示"请再输入一次"，
-        // 玩家再次提交同一个 ID 才会真正写库。
         cli.onCommand(NukkitSender.of(player), new String[]{"binding", id});
 
-        // 提交后重新弹一次输入框，方便玩家完成二次确认；
-        // 延迟 1 秒等命令的异步反馈先到聊天栏。
+        // 提交后重新弹一次输入框，方便玩家完成二次确认
         KBBSToperCore.scheduler().runLater(() -> {
             if (player.isOnline() && needConfirm(player)) {
                 FormRouter.openBindingForm(player);
@@ -112,6 +138,139 @@ public class FormListener implements Listener {
             return false;
         }
         return cli.getCache().get(player.getUniqueId().toString()) != null;
+    }
+
+    // ---------------------------------------------------------------
+    // 分页列表（记录 / 排行）
+    // ---------------------------------------------------------------
+
+    private void handlePaged(Player player, FormRouter.PendingForm pending, PlayerFormRespondedEvent event) {
+        if (!(event.getResponse() instanceof FormResponseSimple)) {
+            return;
+        }
+        int clicked = ((FormResponseSimple) event.getResponse()).getClickedButtonId();
+        List<FormAction> actions = pending.buttons;
+        if (actions == null || clicked < 0 || clicked >= actions.size()) {
+            return;
+        }
+        FormAction action = actions.get(clicked);
+        String kind = pending.pagedKind;
+        switch (action) {
+            case PREV_PAGE:
+                if ("top".equals(kind)) {
+                    FormRouter.openTopForm(player, pending.page - 1);
+                } else {
+                    FormRouter.openRecordsForm(player, pending.page - 1);
+                }
+                break;
+            case NEXT_PAGE:
+                if ("top".equals(kind)) {
+                    FormRouter.openTopForm(player, pending.page + 1);
+                } else {
+                    FormRouter.openRecordsForm(player, pending.page + 1);
+                }
+                break;
+            case BACK:
+                FormRouter.openMainForm(player);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 菜单表单（管理 / 测试 / 调试）
+    // ---------------------------------------------------------------
+
+    private void handleMenu(Player player, FormRouter.PendingForm pending, PlayerFormRespondedEvent event) {
+        if (!(event.getResponse() instanceof FormResponseSimple)) {
+            return;
+        }
+        int clicked = ((FormResponseSimple) event.getResponse()).getClickedButtonId();
+        List<FormAction> actions = pending.buttons;
+        if (actions == null || clicked < 0 || clicked >= actions.size()) {
+            return;
+        }
+
+        CLI cli = KBBSToperCore.cli();
+        if (cli == null) {
+            return;
+        }
+
+        switch (actions.get(clicked)) {
+            case TEST_REWARD:
+                FormRouter.openTestForm(player);
+                break;
+            case TEST_NORMAL:
+                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "normal"});
+                break;
+            case TEST_INCENTIVE:
+                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "incentive"});
+                break;
+            case TEST_OFFDAY:
+                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "offday"});
+                break;
+            case LIST:
+                cli.onCommand(NukkitSender.of(player), new String[]{"list"});
+                break;
+            case CHECK:
+                FormRouter.openInputForm(player, "check",
+                        Message.FORM2_MANAGE_CHECK.getString("检查绑定"), "论坛ID");
+                break;
+            case DELETE:
+                FormRouter.openInputForm(player, "delete",
+                        Message.FORM2_MANAGE_DELETE.getString("删除玩家数据"), "玩家名");
+                break;
+            case RELOAD:
+                cli.onCommand(NukkitSender.of(player), new String[]{"reload"});
+                break;
+            case DEBUG:
+                FormRouter.openDebugForm(player);
+                break;
+            case DEBUG_CLEAR:
+                cli.onCommand(NukkitSender.of(player), new String[]{"debug", "clear"});
+                break;
+            case DEBUG_STATUS:
+                cli.onCommand(NukkitSender.of(player), new String[]{"debug", "status"});
+                break;
+            case DEBUG_SIMULATE:
+                cli.onCommand(NukkitSender.of(player), new String[]{"debug", "simulate"});
+                break;
+            case BACK:
+                if ("manage".equals(pending.backTo)) {
+                    FormRouter.openManageForm(player);
+                } else {
+                    FormRouter.openMainForm(player);
+                }
+                break;
+            default:
+                player.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 参数输入（检查 / 删除）
+    // ---------------------------------------------------------------
+
+    private void handleInput(Player player, FormRouter.PendingForm pending, PlayerFormRespondedEvent event) {
+        if (!(event.getResponse() instanceof FormResponseCustom)) {
+            return;
+        }
+        String input = ((FormResponseCustom) event.getResponse()).getInputResponse(1);
+        if (input == null || input.trim().isEmpty()) {
+            player.sendMessage(Message.PREFIX.getString() + Message.FORM2_INPUT_EMPTY.getString("&c输入不能为空。"));
+            return;
+        }
+        CLI cli = KBBSToperCore.cli();
+        if (cli == null) {
+            return;
+        }
+        String id = input.trim();
+        if ("check".equals(pending.inputAction)) {
+            cli.onCommand(NukkitSender.of(player), new String[]{"check", "bbsid", id});
+        } else if ("delete".equals(pending.inputAction)) {
+            cli.onCommand(NukkitSender.of(player), new String[]{"delete", id});
+        }
     }
 
     @EventHandler

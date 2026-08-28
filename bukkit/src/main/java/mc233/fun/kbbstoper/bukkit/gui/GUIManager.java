@@ -1,20 +1,27 @@
 package mc233.fun.kbbstoper.bukkit.gui;
 
 import mc233.fun.kbbstoper.bukkit.BukkitSender;
+import mc233.fun.kbbstoper.core.GuiAction;
 import mc233.fun.kbbstoper.core.KBBSToperCore;
+import mc233.fun.kbbstoper.core.MenuRouter;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.InventoryHolder;
 
-/** 箱子界面点击分发。 */
+/**
+ * 箱子界面点击分发（v2 最终稿）。
+ * 主菜单与子界面动作走 {@link GuiAction} 枚举；铁砧输入单独处理。
+ */
 public class GUIManager implements Listener {
 
     @EventHandler
@@ -24,62 +31,173 @@ public class GUIManager implements Listener {
         }
         Player p = (Player) ev.getWhoClicked();
         InventoryHolder holder = p.getOpenInventory().getTopInventory().getHolder();
-        if (!(holder instanceof GUI.GUIHolder)) {
+
+        if (holder instanceof AnvilInput) {
+            handleAnvilClick(ev, p, (AnvilInput) holder);
+            return;
+        }
+        if (!(holder instanceof GUI.Holder)) {
             return;
         }
 
         ev.setCancelled(true);
-        String action = ((GUI.GUIHolder) holder).getActions().get(ev.getRawSlot());
+        GUI.Holder gui = (GUI.Holder) holder;
+        GuiAction action = gui.getActions().get(ev.getRawSlot());
         if (action == null) {
             return;
         }
+        dispatch(p, gui, action);
+    }
 
-        p.closeInventory();
-
-        switch (action.toLowerCase()) {
-            case "binding":
-                sendBindingSuggestion(p);
+    private void dispatch(Player p, GUI.Holder gui, GuiAction action) {
+        switch (action) {
+            case CLOSE:
+                p.closeInventory();
                 break;
-
-            case "reward":
+            case OPEN_MAIN:
+            case BACK:
+                GUI.openMain(p);
+                break;
+            case BINDING:
+                p.closeInventory();
+                GUI.openBindingAnvil(p);
+                break;
+            case REWARD:
+                p.closeInventory();
                 KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"reward"});
                 break;
-
-            case "top":
-                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"top"});
+            case MY_RECORDS:
+                GUI.openRecords(p, 1);
                 break;
-
-            case "open":
-                String url = "https://" + Option.WEBSITE.getString() + "/thread-"
-                        + Option.BBS_URL.getString() + "-1-1.html";
-                Message.CLICKPOSTICON.getStringList()
-                        .forEach(line -> p.sendMessage(line.replace("%PAGE%", url)));
+            case PROMO_POST:
+                sendPromo(p);
                 break;
-
+            case TOP:
+                GUI.openTop(p, 1);
+                break;
+            case RULES:
+                GUI.openRules(p);
+                break;
+            case MY_STATUS:
+                GUI.openStatus(p);
+                break;
+            case MANAGE:
+                GUI.openManage(p);
+                break;
+            case TEST_REWARD:
+                GUI.openTestReward(p);
+                break;
+            case TEST_NORMAL:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "normal"});
+                break;
+            case TEST_INCENTIVE:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "incentive"});
+                break;
+            case TEST_OFFDAY:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "offday"});
+                break;
+            case LIST:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"list"});
+                break;
+            case CHECK:
+                p.closeInventory();
+                GUI.openCheckAnvil(p);
+                break;
+            case DELETE:
+                p.closeInventory();
+                GUI.openDeleteAnvil(p);
+                break;
+            case RELOAD:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"reload"});
+                break;
+            case DEBUG:
+                GUI.openDebug(p);
+                break;
+            case DEBUG_CLEAR:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"debug", "clear"});
+                break;
+            case DEBUG_STATUS:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"debug", "status"});
+                break;
+            case DEBUG_SIMULATE:
+                p.closeInventory();
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"debug", "simulate"});
+                break;
+            case HELP:
+                GUI.openHelp(p);
+                break;
+            case PREV_PAGE:
+            case NEXT_PAGE:
+                page(p, gui.getKind(), action);
+                break;
             default:
                 p.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
         }
     }
 
-    /**
-     * 发一条可点击消息，玩家点击后聊天栏自动补全 "/bt binding "，
-     * 由玩家自己补上 ID。同时挂一个临时聊天监听兜底（配置开启时）。
-     */
-    public static void sendBindingSuggestion(Player p) {
-        if (Option.GUI_USECHATGETID.getBoolean()) {
-            new IDListener(p.getUniqueId()).register();
-            p.sendMessage(Message.PREFIX.getString() + Message.ENTER.getString()
-                    .replace("%KEYWORD%", String.join(", ", Option.GUI_CANCELKEYWORDS.getStringList())));
+    private void page(Player p, String kind, GuiAction dir) {
+        MenuRouter.PageState st = MenuRouter.state(p.getUniqueId());
+        if ("records".equals(kind)) {
+            int page = st.recordPage + (dir == GuiAction.NEXT_PAGE ? 1 : -1);
+            GUI.openRecords(p, page);
+        } else if ("top".equals(kind)) {
+            int page = st.topPage + (dir == GuiAction.NEXT_PAGE ? 1 : -1);
+            GUI.openTop(p, page);
         }
-        TextComponent msg = new TextComponent("▶ §a点击此处绑定论坛ID §7◀");
+    }
+
+    // ---------------------------------------------------------------
+    // 铁砧输入
+    // ---------------------------------------------------------------
+
+    private void handleAnvilClick(InventoryClickEvent ev, Player p, AnvilInput anvil) {
+        int raw = ev.getRawSlot();
+        if (raw == 2) {
+            ev.setCancelled(true);
+            if (ev.getCurrentItem() != null && ev.getCurrentItem().getType() != org.bukkit.Material.AIR) {
+                String text = ev.getCurrentItem().hasItemMeta()
+                        && ev.getCurrentItem().getItemMeta().hasDisplayName()
+                        ? ev.getCurrentItem().getItemMeta().getDisplayName() : "";
+                anvil.confirm(p, text);
+            }
+            return;
+        }
+        // 改名槽 / 输入槽允许放取物品，保证改名栏可用；空掉时补回占位物品
+        ev.setCancelled(false);
+        if (raw == 0 || raw == 1) {
+            Bukkit.getScheduler().runTask(
+                    mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(), anvil::ensureGuide);
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 宣传帖
+    // ---------------------------------------------------------------
+
+    /** 发一条可点击的宣传帖链接消息（JAVA 特点：点击即打开）。 */
+    private void sendPromo(Player p) {
+        String url = "https://" + Option.WEBSITE.getString() + "/thread-"
+                + Option.BBS_URL.getString() + "-1-1.html";
+        Message.CLICKPOSTICON.getStringList()
+                .forEach(line -> p.sendMessage(line.replace("%PAGE%", url)));
+        TextComponent msg = new TextComponent("▶ §a点击打开本服宣传帖 §7◀");
         msg.setHoverEvent(new HoverEvent(
                 HoverEvent.Action.SHOW_TEXT,
-                new ComponentBuilder("§7点击后自动补全 §b/bt binding ").create()
+                new ComponentBuilder("§7点击打开宣传帖链接").create()
         ));
-        msg.setClickEvent(new ClickEvent(
-                ClickEvent.Action.SUGGEST_COMMAND,
-                "/bt binding "
-        ));
+        msg.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
         p.spigot().sendMessage(msg);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        MenuRouter.clear(event.getPlayer().getUniqueId());
     }
 }

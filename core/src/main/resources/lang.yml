@@ -143,3 +143,115 @@ debug:
     clear: '&a已清空你的顶帖状态(今日已领次数/上次领奖日/HP上限已重置, 顶帖记录已清除).'
     status: '&b你的顶帖状态 — 论坛ID: &e%BBSNAME%&b, 上次领奖日: &e%REWARDBEFORE%&b, 今日已顶: &e%REWARDTIME%&b 次, HP上限: &e%MAXHP%'
     simulate: '&a已模拟一次"检测到你顶帖", 请查看奖励发放与控制台(MGactivity/Vault)响应.'
+
+#=============================================================
+# 双端新 GUI（v2 最终稿）共用文案
+# JAVA(箱子) 与 基岩(表单) 共用这些占位符文案, 颜色码仅 JAVA 侧渲染
+# 内置占位符: %BBSNAME% %POSTTIMES% %MAXHP% %REWARDTIME% %REWARDBEFORE%
+#             %TODAYLIMIT% %COOLDOWN% %PAGEURL% %PREFIX%
+#=============================================================
+gui2:
+    #我的状态
+    status:
+        title: '&3&l我的状态'
+        bbsid: '&e论坛ID: &f%BBSNAME%'
+        posttimes: '&e顶帖次数: &f%POSTTIMES%'
+        maxhp: '&e生命上限: &f%MAXHP%'
+        rewardtime: '&e今日已领: &f%REWARDTIME%/%TODAYLIMIT% 次'
+        rewardbefore: '&e上次领奖日: &f%REWARDBEFORE%'
+    #我的顶帖记录
+    records:
+        title: '&d&l我的顶帖记录'
+        empty: '&7暂无顶帖记录'
+    #顶帖排行榜
+    top:
+        title: '&6&l顶帖排行榜'
+        empty: '&7暂无排行数据'
+    #活动规则
+    rules:
+        title: '&6&l活动规则'
+        peak: '&e高峰时段: &f%START%:00 - %END%:00 顶帖奖励加成'
+        limit: '&e每日可领: &f首顶 %FIRST% 次 + 额外 %EXTRA% 次'
+        extra: '&e附加奖励: &f高峰期顶帖 或 离线超过 %HOURS% 小时再顶帖, 可额外领一次'
+        reward: '&e单次奖励: &f成长值 +%GROWTH%, 成长倍率 %GROWTHMULT%, 经验倍率 %EXPMULT%, 生命上限 +%HP% (上限 %CAP%), 星光点 +%STAR%'
+    #管理菜单
+    manage:
+        title: '&c&l管理菜单'
+        test: '&b测试奖励'
+        list: '&b顶帖列表(全服)'
+        check: '&b检查绑定'
+        delete: '&c删除玩家数据'
+        reload: '&a重载插件'
+        debug: '&e调试'
+    #测试奖励子菜单
+    test:
+        title: '&b&l测试奖励'
+        normal: '&a普通奖励'
+        incentive: '&e激励奖励'
+        offday: '&b休息日奖励'
+    #帮助
+    help:
+        title: '&3&l帮助'
+        help: '&3/bt help - 帮助'
+        binding: '&3/bt binding &lt;ID&gt; - 绑定论坛ID'
+        reward: '&3/bt reward - 领取奖励'
+        list: '&3/bt list - 顶帖列表(OP)'
+        top: '&3/bt top - 排行榜'
+        check: '&3/bt check - 检查(OP)'
+        delete: '&3/bt delete - 删除(OP)'
+        reload: '&3/bt reload - 重载(OP)'
+        debug: '&3/bt debug - 调试(OP)'
+    #通用
+    back: '&7返回主菜单'
+    prev: '&e上一页'
+    next: '&e下一页'
+    close: '&c关闭'
+    main: '&a主菜单'
+    page: '&7第 %PAGE%/%TOTAL% 页'
+    #铁砧绑定界面
+    anvil:
+        title: '&b&l绑定论坛ID'
+        guide: '&7在改名槽输入论坛ID, 点击输出物品确认'
+        invalid: '&4论坛ID不合法: 仅允许字母/数字/下划线/中文, 长度1-32!'
+        confirm: '&7再输入一次相同ID完成确认'
+
+#=============================================================
+# 基岩版新表单（v2 最终稿, Nukkit端专用）
+# 标题/内容不渲染颜色码, 插件会自动去掉后再显示
+#=============================================================
+form2:
+    button:
+        myrecords: '我的顶帖记录'
+        status: '我的状态'
+        rules: '活动规则'
+        manage: '管理菜单'
+    status:
+        title: '我的状态'
+    records:
+        title: '我的顶帖记录'
+    top:
+        title: '顶帖排行榜'
+    rules:
+        title: '活动规则'
+    manage:
+        title: '管理菜单'
+        test: '测试奖励'
+        list: '顶帖列表(全服)'
+        check: '检查绑定'
+        delete: '删除玩家数据'
+        reload: '重载插件'
+        debug: '调试'
+    test:
+        title: '测试奖励'
+        normal: '普通奖励'
+        incentive: '激励奖励'
+        offday: '休息日奖励'
+    input:
+        title: '输入'
+        label: '请输入:'
+        placeholder: '在此输入'
+        empty: '输入不能为空。'
+    back: '返回主菜单'
+    prev: '上一页'
+    next: '下一页'
+    page: '第 %PAGE%/%TOTAL% 页'

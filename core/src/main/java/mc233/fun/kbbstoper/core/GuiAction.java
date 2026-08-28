@@ -1,25 +1,32 @@
-package mc233.fun.kbbstoper.nukkit.form;
+package mc233.fun.kbbstoper.core;
 
-/** 表单按钮对应的动作（v2 最终稿，与 Java 端 GuiAction 对应）。 */
-public enum FormAction {
+/**
+ * GUI 动作标识，双端（Bukkit 箱子 / Nukkit 表单）共用。
+ * 值即 gui.yml 中 action 字段的取值，也用于表单按钮分发。
+ */
+public enum GuiAction {
 
-    /** 绑定 / 换绑论坛 ID。 */
+    /** 关闭界面。 */
+    CLOSE,
+    /** 打开主菜单。 */
+    OPEN_MAIN,
+    /** 绑定 / 更换论坛 ID（JAVA 打开铁砧，基岩打开输入表单）。 */
     BINDING,
     /** 领取顶帖奖励。 */
     REWARD,
     /** 我的顶帖记录（分页）。 */
     MY_RECORDS,
-    /** 我的状态。 */
-    MY_STATUS,
+    /** 查看宣传帖。 */
+    PROMO_POST,
     /** 顶帖排行榜（分页）。 */
     TOP,
-    /** 显示宣传帖链接。 */
-    POST,
-    /** 活动规则。 */
+    /** 活动规则说明。 */
     RULES,
+    /** 我的状态。 */
+    MY_STATUS,
     /** 管理菜单（OP）。 */
     MANAGE,
-    /** 打开测试奖励子菜单（OP）。 */
+    /** 测试奖励子菜单（OP）。 */
     TEST_REWARD,
     /** 测试奖励 - 普通（OP）。 */
     TEST_NORMAL,
@@ -43,10 +50,12 @@ public enum FormAction {
     DEBUG_STATUS,
     /** 调试 - 模拟（OP）。 */
     DEBUG_SIMULATE,
+    /** 帮助。 */
+    HELP,
     /** 上一页。 */
     PREV_PAGE,
     /** 下一页。 */
     NEXT_PAGE,
-    /** 返回上级菜单。 */
+    /** 返回上一级 / 主菜单。 */
     BACK
 }

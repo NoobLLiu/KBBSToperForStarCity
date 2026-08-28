@@ -1,57 +1,120 @@
 #########################################
 #                                       #
 #       这里是KBBSToperForStarCity的GUI配置文件      #
+#       v2 最终稿: 9x4 分区布局             #
 #                                       #
+#  内置占位符(不依赖PAPI):               #
+#   %BBSNAME% %POSTTIMES% %MAXHP%        #
+#   %REWARDTIME% %REWARDBEFORE%          #
+#   %TODAYLIMIT% %COOLDOWN% %PAGEURL%    #
 #########################################
 gui:
   title: '%PREFIX%'
-  rows: 3
+  # 基准行数(OP 完整 4 行); 普通玩家自动降为 3 行, 隐藏管理行
+  rows: 4
   border:
-    fill: 'WHITE_STAINED_GLASS_PANE'
+    fill: 'GRAY_STAINED_GLASS_PANE'
     slots:
-      - 0;1;2;3;4;5;6;7;8
-      - 9;17
-      - 18;26
-      - 27;35
-      - 36;44
-      - 45;53
+      - '0;1;2;3;4;5;6;7;8'
+      - '9;10;11;12;13;14;15;16;17'
+      - '18;19;20;21;22;23;24;25;26'
+      - '27;28;29;30;31;32;33;34;35'
   items:
-    bind:
-      slot: 12
-      type: 'PLAYER_HEAD'
-      displayName: '&a绑定绑定'
-      lore:
-        - '&7点击绑定您的论坛ID'
-      action: 'binding'
-      # 以下为已绑定后的替换内容
-      bound-type: 'PLAYER_HEAD'
-      bound-displayName: '&a已绑定：%player_name%'
-      bound-lore:
-        - '&7绑定账号：%bbstoper_bbsid%'
-        - '&7顶贴次数：%bbstoper_posttimes%'
-        - '&7上次顶贴：%bbstoper_lastpost%'
-        - ‘’
-        - ‘&e点击重新绑定’
-      bound-action: 'binding'
-    reward:
-      slot: 13
-      type: 'SUNFLOWER'
-      displayName: '&b领取奖励'
-      lore:
-        - '&7奖励: 114514个 绿宝石'
-        - '&7点击领取当前帖奖励'
-      action: 'reward'
-    top:
-      slot: 14
-      type: 'NETHER_STAR'
-      displayName: '&e顶贴排行'
-      lore:
-        - '&7点击查看全服排名'
-      action: 'top'
+    # ---------- 信息区 ----------
     status:
-      slot: 22
-      type: 'COMPASS'
-      displayName: '&d帖子状态'
+      slot: 0
+      type: 'PLAYER_HEAD'
+      displayName: '&a我的状态'
       lore:
-        - '&7点击打开宣传帖链接'
-      action: 'open'
+        - '&e论坛ID: &f%BBSNAME%'
+        - '&e顶帖次数: &f%POSTTIMES%'
+        - '&e生命上限: &f%MAXHP%'
+        - '&e今日已领: &f%REWARDTIME%/%TODAYLIMIT% 次'
+        - '&7点击查看详细状态'
+      action: 'MY_STATUS'
+    close:
+      slot: 8
+      type: 'BARRIER'
+      displayName: '&c关闭'
+      lore:
+        - '&7关闭本界面'
+      action: 'CLOSE'
+    # ---------- 功能区 ----------
+    bind:
+      slot: 10
+      type: 'NAME_TAG'
+      displayName: '&a绑定论坛ID'
+      lore:
+        - '&7在铁砧界面输入论坛ID'
+        - '&7(字母/数字/中文, 需二次确认)'
+      action: 'BINDING'
+      bound-type: 'NAME_TAG'
+      bound-displayName: '&e更换论坛ID'
+      bound-lore:
+        - '&7当前绑定: &f%BBSNAME%'
+        - '&7点击更换论坛ID'
+      bound-action: 'BINDING'
+    reward:
+      slot: 12
+      type: 'SUNFLOWER'
+      displayName: '&b领取顶帖奖励'
+      lore:
+        - '&e今日已领: &f%REWARDTIME%/%TODAYLIMIT% 次'
+        - '&7冷却: &f%COOLDOWN% 秒'
+        - '&7点击领取当前帖奖励'
+      action: 'REWARD'
+    myrecords:
+      slot: 14
+      type: 'BOOK'
+      displayName: '&d我的顶帖记录'
+      lore:
+        - '&7查看自己的顶帖时间记录'
+        - '&7当前共 &f%POSTTIMES% &7条'
+      action: 'MY_RECORDS'
+    promo:
+      slot: 16
+      type: 'MAP'
+      displayName: '&9查看宣传帖'
+      lore:
+        - '&7点击发送宣传帖链接'
+        - '&7%PAGEURL%'
+      action: 'PROMO_POST'
+    # ---------- 查询区 ----------
+    top:
+      slot: 20
+      type: 'EMERALD'
+      displayName: '&e顶帖排行榜'
+      lore:
+        - '&7查看全服顶帖排名'
+      action: 'TOP'
+    rules:
+      slot: 22
+      type: 'ENCHANTED_BOOK'
+      displayName: '&6活动规则'
+      lore:
+        - '&7高峰期/每日限制/奖励表'
+      action: 'RULES'
+    mystatus:
+      slot: 24
+      type: 'POTION'
+      displayName: '&d我的状态'
+      lore:
+        - '&7快捷查看我的状态'
+      action: 'MY_STATUS'
+    # ---------- 管理区(OP) ----------
+    manage:
+      slot: 28
+      type: 'COMMAND_BLOCK'
+      displayName: '&c管理菜单'
+      lore:
+        - '&7测试/列表/检查/删除/重载/调试'
+      action: 'MANAGE'
+      # 普通玩家不可见
+      op-only: true
+    help:
+      slot: 34
+      type: 'WRITABLE_BOOK'
+      displayName: '&7帮助'
+      lore:
+        - '&7指令速查'
+      action: 'HELP'
