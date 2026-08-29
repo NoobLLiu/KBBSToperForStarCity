@@ -14,6 +14,7 @@ public enum Message {
     RELOAD("reload"),
     FAILEDCONNECTSQL("failedconnectsql"),
     QUERYCOOLDOWN("querycooldown"),
+    MANUALCOOLDOWN("manualcooldown"),
     POSTERID("posterid"),
     POSTERNUM("posternum"),
     OVERPAGE("overpage"),

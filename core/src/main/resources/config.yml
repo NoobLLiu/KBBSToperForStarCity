@@ -12,7 +12,7 @@
 # 注意: 本字段必须与 build.gradle 的 version 一致!
 # ConfigManager 每次启动比对: 不一致会把本文件与 lang.yml 重置为内置模板(旧文件备份为 *_old.yml)
 # 之前 A1 -> A2 忘了同步, 导致每次启动都重置配置; 现已对齐
-version: 3.7.4_A9
+version: 3.7.4_A10
 
 #DEBUG模式
 debug: false
@@ -85,7 +85,11 @@ gui:
 #奖励设置（StarCity 魔改版）
 reward:
     #自动奖励间隔，循环访问宣传帖自动发奖，单位秒，0关闭
-    auto: 30
+    #默认 600 = 每 10 分钟轮询一次（降低对论坛的请求压力）
+    auto: 600
+    #玩家手动点击"领取顶帖奖励"触发检查的冷却，单位秒
+    #默认 600 = 10 分钟，独立于 list/top 的查询冷却(querycooldown)
+    manual-cooldown: 600
     #顶贴后领取奖励的有效期, 单位天
     period: 10
     #同一个玩家距离上次顶贴多少分钟后再次顶贴才算有效, 0=一直有效

@@ -22,10 +22,10 @@ import java.util.UUID;
 /** /bt reward，主动领取顶帖奖励。 */
 public class RewardCommandHandler implements CommandHandler {
 
-    private final Map<UUID, Long> queryrecord;
+    private final Map<UUID, Long> cooldownRecord;
 
-    public RewardCommandHandler(Map<UUID, Long> queryrecord) {
-        this.queryrecord = queryrecord;
+    public RewardCommandHandler(Map<UUID, Long> cooldownRecord) {
+        this.cooldownRecord = cooldownRecord;
     }
 
     @Override
@@ -52,14 +52,14 @@ public class RewardCommandHandler implements CommandHandler {
 
         if (!sender.hasPermission("bbstoper.bypassquerycooldown")) {
             long now = System.currentTimeMillis();
-            long last = queryrecord.getOrDefault(uid, 0L);
-            double cdSec = (Option.BBS_QUERYCOOLDOWN.getInt() * 1000 - (now - last)) / 1000.0;
+            long last = cooldownRecord.getOrDefault(uid, 0L);
+            double cdSec = (Option.REWARD_MANUAL_COOLDOWN.getInt() * 1000 - (now - last)) / 1000.0;
             if (cdSec > 0) {
                 sender.sendMessage(Message.PREFIX.getString()
-                        + Message.QUERYCOOLDOWN.getString().replace("%COOLDOWN%", String.valueOf((int) cdSec)));
+                        + Message.MANUALCOOLDOWN.getString().replace("%COOLDOWN%", String.valueOf((int) cdSec)));
                 return;
             }
-            queryrecord.put(uid, now);
+            cooldownRecord.put(uid, now);
         }
 
         Crawler crawler = Crawler.fetch();

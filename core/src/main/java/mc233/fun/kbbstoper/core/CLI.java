@@ -30,8 +30,11 @@ public class CLI {
     /** 绑定二次确认的临时缓存，键为玩家 UUID 字符串。 */
     private final Map<String, String> cache = new ConcurrentHashMap<>();
 
-    /** 查询冷却记录。 */
+    /** 查询冷却记录（list/top 共用）。 */
     private final Map<UUID, Long> queryrecord = new ConcurrentHashMap<>();
+
+    /** 玩家手动触发领奖/检查冷却记录（reward 专用，独立于查询冷却）。 */
+    private final Map<UUID, Long> manualrecord = new ConcurrentHashMap<>();
 
     private final Map<String, CommandHandler> handlers = new LinkedHashMap<>();
 
@@ -51,7 +54,7 @@ public class CLI {
 
         handlers.put("help", new HelpCommandHandler());
         handlers.put("binding", new BindingCommandHandler(cache));
-        handlers.put("reward", new RewardCommandHandler(queryrecord));
+        handlers.put("reward", new RewardCommandHandler(manualrecord));
         handlers.put("testreward", new TestRewardCommandHandler());
         handlers.put("list", new ListCommandHandler());
         handlers.put("top", new TopCommandHandler());

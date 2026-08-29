@@ -34,6 +34,7 @@ public enum Option {
     GUI_USECHATGETID("gui.usechatgetid"),
     GUI_CANCELKEYWORDS("gui.cancelkeywords"),
     REWARD_AUTO("reward.auto"),
+    REWARD_MANUAL_COOLDOWN("reward.manual-cooldown"),
     REWARD_PERIOD("reward.period"),
     REWARD_INTERVAL("reward.interval"),
     REWARD_TIMES("reward.times"),
