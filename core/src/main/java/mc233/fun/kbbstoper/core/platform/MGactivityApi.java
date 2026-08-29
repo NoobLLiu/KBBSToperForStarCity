@@ -37,6 +37,8 @@ package mc233.fun.kbbstoper.core.platform;
  *       MGactivity 必须<b>把该值真正应用到玩家游戏内属性</b>（即设置 Minecraft 的 generic.max_health），并持久化、跨天保留、不要每日清零。
  *       下限钳制请与 KBBSToper 的 hp-base（默认 20）保持一致，避免被 MGactivity 抬到 30 导致下限不一致。</li>
  *   <li>streakbreak：<b>增量</b>累加，立即生效。</li>
+ *   <li>成长值（数值，非倍率）：KBBSToper 通过控制台命令 <b>reward.growth-grant-commands</b>（如 <code>mgactivity addgrowthpoints &lt;玩家&gt; &lt;值&gt;</code>）发放，<b>不走本 Java API</b>。
+ *       刻意不新增 addGrowthPoints 之类的方法——成长值累加由 MGactivity 命令实现，避免与倍率（取最大值）语义混淆。</li>
  *   <li>玩家名与顶帖绑定名一致；含中文/特殊字符时必须可正确解析。</li>
  * </ul>
  *

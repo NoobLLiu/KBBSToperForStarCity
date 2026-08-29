@@ -409,8 +409,11 @@ public class Reward {
                 if (e.maxHp()) {
                     m.setMaxHp(n, e.maxHpVal());
                 }
-            } else {
-                DebugCommandHandler.trace("dispatch(" + n + "): 走 MGactivity 控制台命令回退下发(" + c.size() + " 条)");
+            }
+            // 成长值(数值)始终走控制台命令(growth-grant-commands), 与 MG API 是否可用无关:
+            // MG API 存在时 cmds 仅含成长值命令; 不存在时 cmds 还含倍率/HP 回退命令。
+            if (!c.isEmpty()) {
+                DebugCommandHandler.trace("dispatch(" + n + "): 下发成长值命令(" + c.size() + " 条)");
                 for (String cmd : c) {
                     if (cmd != null && !cmd.isBlank()) {
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);

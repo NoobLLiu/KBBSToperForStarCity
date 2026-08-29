@@ -12,7 +12,7 @@
 # 注意: 本字段必须与 build.gradle 的 version 一致!
 # ConfigManager 每次启动比对: 不一致会把本文件与 lang.yml 重置为内置模板(旧文件备份为 *_old.yml)
 # 之前 A1 -> A2 忘了同步, 导致每次启动都重置配置; 现已对齐
-version: 3.7.4_A6
+version: 3.7.4_A7
 
 #DEBUG模式
 debug: false
@@ -138,12 +138,11 @@ reward:
         # 自 v3.7.4_A3 起, 星光点统一直接对接 EssentialsX 经济(见 reward.vault), 不再经 MGactivity
         enable-star-points: true
 
-    # ---- 成长值 +100 的发放指令 ----
-    # 说明: MGactivity 当前导出接口没有"加成长值"方法,
-    # 此处填入你实际的成长值发放命令(每次普通/附加奖励都会执行一次)。
-    # 若暂不接入, 留空即可(仅倍率/HP/星光点/连签生效)。
-    growth-grant-commands: []
-    #  - '你的成长值发放命令 %PLAYER% 100'
+    # ---- 成长值发放指令(每次有效奖励 +growth-per-reward, 附加奖励再 +additional-growth) ----
+    # 成长值(数值)走 MGactivity 控制台命令, 不经 Java API(刻意不新增 addGrowthPoints 方法)。
+    # %PLAYER% = 玩家名, %VALUE% = 本次成长值(由插件按配置填入)。
+    growth-grant-commands:
+      - 'mgactivity addgrowthpoints %PLAYER% %VALUE%'
 
     # ---- 附加顶贴奖励(高峰期 或 12h 无人顶贴, 任一满足) ----
     additional:
