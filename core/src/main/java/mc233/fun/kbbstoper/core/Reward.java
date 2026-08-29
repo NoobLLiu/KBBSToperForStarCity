@@ -416,7 +416,20 @@ public class Reward {
                 DebugCommandHandler.trace("dispatch(" + n + "): 下发成长值命令(" + c.size() + " 条)");
                 for (String cmd : c) {
                     if (cmd != null && !cmd.isBlank()) {
+                        DebugCommandHandler.trace("dispatch(" + n + "): 控制台执行 -> " + cmd);
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);
+                    }
+                }
+                // 回读校验: 命令下发是同步执行的, 立即回读可确认成长值已写入 MGactivity 数据存储
+                // (即 /actistatus 读取的那份), 若回读不到说明命令未生效(名称/权限/实现问题)。
+                if (m != null) {
+                    double after = m.getGrowthValue(n);
+                    if (after >= 0) {
+                        DebugCommandHandler.trace("dispatch(" + n + "): 命令下发后回读成长值 = " + after
+                                + " (应能在 /actistatus 看到)");
+                    } else {
+                        DebugCommandHandler.trace("dispatch(" + n + "): MGactivity 未覆写 getGrowthValue, 无法回读校验"
+                                + " (不影响发放, 请服主自行核对 /actistatus)");
                     }
                 }
             }
