@@ -248,7 +248,8 @@ public class Reward {
                 growthGranted += Option.REWARD_VAL_ADD_GROWTH.getDouble();
             }
         }
-        sendRewardSummary(name, isFirst, isExtra, hpStep, newMaxHp, starPoints, growthGranted);
+        sendRewardSummary(name, isFirst, isExtra, hpStep, newMaxHp, starPoints, growthGranted,
+                crawler.Time.get(index));
     }
 
     private static List<String> replacePlayerValue(List<String> list, String name, double value) {
@@ -321,7 +322,8 @@ public class Reward {
             growthGranted = additional ? Option.REWARD_VAL_ADD_GROWTH.getDouble()
                     : Option.REWARD_VAL_GROWTH.getDouble();
         }
-        sendRewardSummary(name, true, false, hpStep, maxHp, star, growthGranted);
+        sendRewardSummary(name, true, false, hpStep, maxHp, star, growthGranted,
+                BBS_FORMAT.format(new Date()));
     }
 
     /**
@@ -331,7 +333,7 @@ public class Reward {
      */
     private void sendRewardSummary(String name, boolean isFirst, boolean isExtra,
                                    int hpStep, int newMaxHp, double starPoints,
-                                   double growthGranted) {
+                                   double growthGranted, String timeStr) {
         MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
         List<String> parts = new ArrayList<>();
 
@@ -376,7 +378,7 @@ public class Reward {
         String details = parts.isEmpty() ? "无" : String.join(" | ", parts);
         player.sendMessage(Message.PREFIX.getString()
                 + Message.REWARDSUMMARY.getString()
-                        .replaceAll("%TIME%", crawler.Time.get(index))
+                        .replaceAll("%TIME%", timeStr)
                         .replaceAll("%DETAILS%", details));
     }
 
