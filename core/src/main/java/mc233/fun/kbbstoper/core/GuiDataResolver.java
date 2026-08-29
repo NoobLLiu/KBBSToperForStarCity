@@ -162,32 +162,52 @@ public final class GuiDataResolver {
                 .replace("%CURSTAR%", curStar);
     }
 
-    /** 活动规则页内容（双端共用文案，全部实时读 config）。 */
+    /** 活动规则页内容（双端共用文案，全部实时读 config；不展示任何管理/配置向提示）。 */
     public static List<String> rulesLines() {
         List<String> out = new ArrayList<>();
+        int start = Option.REWARD_PEAK_START.getInt();
+        int end = Option.REWARD_PEAK_END.getInt();
+        int first = Option.REWARD_DAILY_FIRST.getInt();
+        int extra = Option.REWARD_DAILY_EXTRA.getInt();
+        int intervalH = Math.max(1, Option.REWARD_INTERVAL.getInt() / 60);
+        int cap = Option.REWARD_VAL_HP_CAP.getInt();
+        int base = Option.REWARD_VAL_HP_BASE.getInt();
+        int add30 = Math.max(0, cap - base);
+        long growth = (long) Option.REWARD_VAL_GROWTH.getDouble();
+        long addGrowth = (long) Option.REWARD_VAL_ADD_GROWTH.getDouble();
+        long star = (long) Option.REWARD_VAL_STAR.getDouble();
+
         out.add(Message.GUI2_RULES_PEAK.getString()
-                .replace("%START%", String.valueOf(Option.REWARD_PEAK_START.getInt()))
-                .replace("%END%", String.valueOf(Option.REWARD_PEAK_END.getInt())));
+                .replace("%START%", String.valueOf(start))
+                .replace("%END%", String.valueOf(end))
+                .replace("%HOURS%", String.valueOf(Option.REWARD_INACTIVE_HOURS.getInt())));
+        out.add(Message.GUI2_RULES_OFFPEAK.getString()
+                .replace("%START%", String.valueOf(start))
+                .replace("%END%", String.valueOf(end)));
         out.add(Message.GUI2_RULES_LIMIT.getString()
-                .replace("%FIRST%", String.valueOf(Option.REWARD_DAILY_FIRST.getInt()))
-                .replace("%EXTRA%", String.valueOf(Option.REWARD_DAILY_EXTRA.getInt())));
+                .replace("%FIRST%", String.valueOf(first))
+                .replace("%EXTRA%", String.valueOf(extra))
+                .replace("%INTERVALH%", String.valueOf(intervalH)));
         out.add(Message.GUI2_RULES_FIRST.getString()
-                .replace("%FIRST%", String.valueOf(Option.REWARD_DAILY_FIRST.getInt()))
+                .replace("%FIRST%", String.valueOf(first))
                 .replace("%GROWTHMULT%", fmtMult(Option.REWARD_VAL_GROWTH_MULT.getDouble()))
                 .replace("%HP%", String.valueOf(Option.REWARD_VAL_HP_STEP.getInt()))
-                .replace("%CAP%", String.valueOf(Option.REWARD_VAL_HP_CAP.getInt())));
+                .replace("%GROWTH%", String.valueOf(growth)));
         out.add(Message.GUI2_RULES_EXTRA.getString()
-                .replace("%EXTRA%", String.valueOf(Option.REWARD_DAILY_EXTRA.getInt()))
-                .replace("%EXPMULT%", fmtMult(Option.REWARD_VAL_EXP_MULT.getDouble())));
+                .replace("%EXTRA%", String.valueOf(extra))
+                .replace("%EXPMULT%", fmtMult(Option.REWARD_VAL_EXP_MULT.getDouble()))
+                .replace("%GROWTH%", String.valueOf(growth)));
         out.add(Message.GUI2_RULES_ADDITIONAL.getString()
-                .replace("%START%", String.valueOf(Option.REWARD_PEAK_START.getInt()))
-                .replace("%END%", String.valueOf(Option.REWARD_PEAK_END.getInt()))
-                .replace("%HOURS%", String.valueOf(Option.REWARD_INACTIVE_HOURS.getInt()))
+                .replace("%START%", String.valueOf(start))
+                .replace("%END%", String.valueOf(end))
                 .replace("%ADHP%", String.valueOf(Option.REWARD_VAL_ADD_HP_STEP.getInt()))
-                .replace("%ADGROWTH%", String.valueOf(Option.REWARD_VAL_ADD_GROWTH.getInt()))
-                .replace("%STAR%", String.valueOf(Option.REWARD_VAL_STAR.getInt())));
-        out.add(Message.GUI2_RULES_GROWTH.getString()
-                .replace("%GROWTH%", String.valueOf(Option.REWARD_VAL_GROWTH.getInt())));
+                .replace("%ADGROWTH%", String.valueOf(addGrowth))
+                .replace("%STAR%", String.valueOf(star)));
+        out.add(Message.GUI2_RULES_HPCAP.getString()
+                .replace("%CAP%", String.valueOf(cap))
+                .replace("%ADD30%", String.valueOf(add30))
+                .replace("%STREAK%", String.valueOf(Option.REWARD_VAL_STREAK.getInt())));
+        out.add(Message.GUI2_RULES_CUMULATIVE.getString());
         return out;
     }
 

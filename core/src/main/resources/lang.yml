@@ -179,13 +179,14 @@ gui2:
     #活动规则
     rules:
         title: '&6&l活动规则'
-        peak: '&e高峰时段: &f%START%:00 - %END%:00 顶帖奖励加成'
-        limit: '&e每日可领: &f首顶 %FIRST% 次 + 额外 %EXTRA% 次'
-        first: '&e首次顶帖(每日 %FIRST% 次): &f成长倍率 %GROWTHMULT%, 生命上限 +%HP% (上限 %CAP%)'
-        extra: '&e额外顶帖(每日 %EXTRA% 次): &f经验倍率 %EXPMULT%'
-        additional: '&e附加奖励: &f高峰(%START%:%END%) 或离线 %HOURS% 小时再顶帖 → 生命上限 +%ADHP%, 成长值 +%ADGROWTH%, 星光点 +%STAR%'
-        growth: '&e每次顶帖: &f成长值 +%GROWTH% (需配置 reward.growth-grant-commands 才入账)'
-        reward: '&e单次奖励: &f成长值 +%GROWTH%, 成长倍率 %GROWTHMULT%, 经验倍率 %EXPMULT%, 生命上限 +%HP% (上限 %CAP%), 星光点 +%STAR%'
+        peak: '&e【高峰期】&f%START%:00-%END%:00 顶帖 &7或 &f距上次全服顶帖超 %HOURS% 小时的新顶帖'
+        offpeak: '&e【平峰期】&f%END%:00-%START%:00'
+        limit: '&e【顶贴上限】&f每日首顶 %FIRST% 次 + 额外 %EXTRA% 次；超出仅记录不奖励；两次顶贴间隔≥%INTERVALH%小时；倍率不叠加，次日自动恢复'
+        first: '&e【普通·每日首顶】&f成长倍率 %GROWTHMULT%、生命上限 +%HP%、成长值 +%GROWTH%'
+        extra: '&e【普通·额外顶贴】&f经验倍率 %EXPMULT%、成长值 +%GROWTH%'
+        additional: '&e【附加顶贴奖励】&f生命上限 +%ADHP%、成长值 +%ADGROWTH%、星光点 +%STAR%'
+        hpcap: '&e【生命上限】&f可叠加最大至 %CAP%（+%ADD30% 血，一排半爱心）；连签中断每日下降 %STREAK%'
+        cumulative: '&e【累计顶贴奖励】&f敬请期待'
     #管理菜单
     manage:
         title: '&c&l管理菜单'
