@@ -8,6 +8,7 @@ import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.MenuRouter;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
 import org.bukkit.Bukkit;
@@ -208,7 +209,7 @@ public final class GUI {
     public static void openRecords(Player player, int page) {
         BukkitPlayer pp = new BukkitPlayer(player);
         Poster poster = GuiDataResolver.poster(pp);
-        List<String> all = (poster == null) ? new ArrayList<>() : poster.getTopStates();
+        List<TopState> all = (poster == null) ? new ArrayList<>() : poster.getTopStates();
 
         MenuRouter.PageState st = MenuRouter.state(player.getUniqueId());
         int total = Math.max(1, (int) Math.ceil(all.size() / (double) RECORD_PAGE_SIZE));
@@ -225,8 +226,19 @@ public final class GUI {
         } else {
             int slot = 0;
             for (int i = start; i < end && slot < 45; i++, slot++) {
-                place(inv, slot, Material.PAPER, all.get(i),
-                        List.of(Message.POSTERTIME.getString()), null);
+                TopState ts = all.get(i);
+                List<String> lore = new ArrayList<>();
+                String kind = ts.isPeak() ? Message.GUI2_RECORD_PEAK.getString()
+                        : Message.GUI2_RECORD_OFFPEAK.getString();
+                String seq = ts.seq <= 0 ? "?" : String.valueOf(ts.seq);
+                lore.add(Message.GUI2_RECORD_KIND.getString()
+                        .replace("%KIND%", kind).replace("%SEQ%", seq));
+                if (ts.hasReward()) {
+                    lore.add(Message.GUI2_RECORD_REWARD.getString().replace("%REWARD%", ts.reward));
+                } else {
+                    lore.add(Message.GUI2_RECORD_NOREWARD.getString());
+                }
+                place(inv, slot, Material.PAPER, ts.time, lore, null);
             }
         }
         paging(inv, cur, total, "records");
@@ -317,8 +329,8 @@ public final class GUI {
     public static void openTestReward(Player player) {
         Inventory inv = menu(3, Message.GUI2_TEST_TITLE.getString(), "test");
         place(inv, 11, Material.EMERALD, Message.GUI2_TEST_NORMAL.getString(), null, GuiAction.TEST_NORMAL);
-        place(inv, 13, Material.FIREWORK_ROCKET, Message.GUI2_TEST_INCENTIVE.getString(), null, GuiAction.TEST_INCENTIVE);
-        place(inv, 15, Material.CLOCK, Message.GUI2_TEST_OFFDAY.getString(), null, GuiAction.TEST_OFFDAY);
+        place(inv, 13, Material.FIREWORK_ROCKET, Message.GUI2_TEST_INCENTIVE.getString(), null, GuiAction.TEST_PEAK);
+        place(inv, 15, Material.CLOCK, Message.GUI2_TEST_OFFDAY.getString(), null, GuiAction.TEST_MAX);
         place(inv, 22, Material.OAK_DOOR, Message.GUI2_MAIN.getString(), null, GuiAction.BACK);
         open(player, inv);
     }

@@ -12,6 +12,7 @@ import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.PlaceholderResolver;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
 import mc233.fun.kbbstoper.nukkit.NukkitPlayer;
@@ -167,6 +168,9 @@ public final class FormRouter {
         form.addButton(new ElementButton(strip(Message.FORM2_BTN_RULES.getString("活动规则"))));
         actions.add(FormAction.RULES);
 
+        form.addButton(new ElementButton(strip(Message.GUI2_HELP_TITLE.getString("帮助"))));
+        actions.add(FormAction.HELP);
+
         if (op) {
             form.addButton(new ElementButton(strip(Message.FORM2_BTN_MANAGE.getString("管理菜单"))));
             actions.add(FormAction.MANAGE);
@@ -268,15 +272,40 @@ public final class FormRouter {
     public static void openRecordsForm(Player player, int page) {
         KBBSToperCore.scheduler().runAsync(() -> {
             Poster poster = GuiDataResolver.poster(new NukkitPlayer(player));
-            List<String> all = (poster == null) ? new ArrayList<>() : poster.getTopStates();
+            List<TopState> states = (poster == null) ? new ArrayList<>() : poster.getTopStates();
             List<String> lines = new ArrayList<>();
-            for (String t : all) {
-                lines.add(t);
+            for (TopState ts : states) {
+                String kind = ts.isPeak() ? Message.FORM2_RECORD_PEAK.getString()
+                        : Message.FORM2_RECORD_OFFPEAK.getString();
+                String seq = ts.seq <= 0 ? "?" : String.valueOf(ts.seq);
+                StringBuilder sb = new StringBuilder();
+                sb.append(ts.time).append(" | ").append(kind).append(" 第").append(seq).append("次");
+                if (ts.hasReward()) {
+                    sb.append(" | ").append(ts.reward);
+                } else {
+                    sb.append(" | ").append(Message.FORM2_RECORD_NOREWARD.getString());
+                }
+                lines.add(sb.toString());
             }
             KBBSToperCore.scheduler().runSync(() -> sendPagedForm(player,
                     Message.FORM2_RECORDS_TITLE.getString("我的顶帖记录"), "records", page,
                     lines));
         });
+    }
+
+    /** 帮助（指令速查，与 Java 版一致）。 */
+    public static void openHelpForm(Player player) {
+        List<String> lines = new ArrayList<>();
+        lines.add(Message.GUI2_HELP_HELP.getString());
+        lines.add(Message.GUI2_HELP_BINDING.getString());
+        lines.add(Message.GUI2_HELP_REWARD.getString());
+        lines.add(Message.GUI2_HELP_LIST.getString());
+        lines.add(Message.GUI2_HELP_TOP.getString());
+        lines.add(Message.GUI2_HELP_CHECK.getString());
+        lines.add(Message.GUI2_HELP_DELETE.getString());
+        lines.add(Message.GUI2_HELP_RELOAD.getString());
+        lines.add(Message.GUI2_HELP_DEBUG.getString());
+        openInfoForm(player, Message.GUI2_HELP_TITLE.getString("帮助"), lines);
     }
 
     public static void openTopForm(Player player, int page) {
@@ -370,9 +399,9 @@ public final class FormRouter {
                 strip(Message.FORM2_TEST_TITLE.getString("测试奖励")), "");
         List<FormAction> actions = new ArrayList<>();
 
-        addMenuButton(form, actions, Message.FORM2_TEST_NORMAL.getString("普通奖励"), FormAction.TEST_NORMAL);
-        addMenuButton(form, actions, Message.FORM2_TEST_INCENTIVE.getString("激励奖励"), FormAction.TEST_INCENTIVE);
-        addMenuButton(form, actions, Message.FORM2_TEST_OFFDAY.getString("休息日奖励"), FormAction.TEST_OFFDAY);
+        addMenuButton(form, actions, Message.FORM2_TEST_NORMAL.getString("平峰期顶帖"), FormAction.TEST_NORMAL);
+        addMenuButton(form, actions, Message.FORM2_TEST_PEAK.getString("高峰期顶帖"), FormAction.TEST_PEAK);
+        addMenuButton(form, actions, Message.FORM2_TEST_MAX.getString("满级效果预览"), FormAction.TEST_MAX);
         addMenuButton(form, actions, Message.FORM2_BACK.getString("返回管理菜单"), FormAction.BACK);
 
         int id = player.showFormWindow(form);

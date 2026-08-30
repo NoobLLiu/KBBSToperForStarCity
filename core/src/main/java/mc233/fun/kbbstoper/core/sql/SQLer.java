@@ -4,10 +4,12 @@ import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
 import mc233.fun.kbbstoper.core.Reward;
+import mc233.fun.kbbstoper.core.TopState;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
@@ -69,16 +71,58 @@ public abstract class SQLer {
         }
     }
 
-    /** 记录一次顶帖。 */
+    /** 记录一次顶帖（兼容旧调用：类型/序号/奖励均未知）。 */
     public void addTopState(String bbsname, String time) {
+        addTopState(bbsname, time, 0, 0, null);
+    }
+
+    /**
+     * 记录一次顶帖，并带上类型/当日序号/奖励文案，供「我的顶帖记录」展示。
+     *
+     * @param kind   0=平峰期，1=高峰期
+     * @param seq    当天第几次（1 起；0=未知）
+     * @param reward 本轮奖励文案；{@code null}/空 表示未发放奖励（如已达每日上限）
+     */
+    public void addTopState(String bbsname, String time, int kind, int seq, String reward) {
         writelock.lock();
-        String sql = String.format("INSERT INTO `%s` (`bbsname`, `time`) VALUES (?, ?);", getTableName("topstates"));
+        String sql = String.format(
+                "INSERT INTO `%s` (`bbsname`, `time`, `kind`, `seq`, `reward`) VALUES (?, ?, ?, ?, ?);",
+                getTableName("topstates"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, bbsname);
             pstmt.setString(2, time);
+            pstmt.setInt(3, kind);
+            pstmt.setInt(4, seq);
+            pstmt.setString(5, reward);
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("记录顶帖失败(bbsname=" + bbsname + ", time=" + time + ")", e);
+        } finally {
+            writelock.unlock();
+        }
+    }
+
+    /**
+     * 在建表后把 topstates 表迁移到带 kind/seq/reward 列的新结构（幂等）。
+     * 同时兼容 SQLite 与 MySQL：列已存在时 ALTER 会抛 duplicate 类错误，忽略即可。
+     */
+    protected void migrateTopStatesColumns() {
+        migrateAddColumn("kind", "INT NOT NULL DEFAULT 0");
+        migrateAddColumn("seq", "INT NOT NULL DEFAULT 0");
+        migrateAddColumn("reward", "TEXT");
+    }
+
+    private void migrateAddColumn(String column, String definition) {
+        writelock.lock();
+        try (PreparedStatement pstmt = getConnection().prepareStatement(
+                String.format("ALTER TABLE `%s` ADD COLUMN `%s` %s;", getTableName("topstates"), column, definition))) {
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // 列已存在（或数据库不支持的部分情况）：忽略 duplicate 类错误，其余上报
+            String msg = (e.getMessage() == null) ? "" : e.getMessage().toLowerCase();
+            if (!msg.contains("duplicate") && !msg.contains("exists")) {
+                KBBSToperCore.logger().severe("迁移 topstates 列失败(" + column + ")", e);
+            }
         } finally {
             writelock.unlock();
         }
@@ -135,11 +179,16 @@ public abstract class SQLer {
         return poster;
     }
 
-    public List<String> getTopStatesFromPoster(Poster poster) {
+    public List<TopState> getTopStatesFromPoster(Poster poster) {
         readlock.lock();
-        List<String> list = new ArrayList<>();
-        String sql = String.format("SELECT `time` from `%s` WHERE `bbsname`=?;", getTableName("topstates"));
-        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+        List<TopState> list = new ArrayList<>();
+        // 新表结构带 kind/seq/reward；旧表可能只有 time（迁移前），逐列容错读取。
+        String sqlFull = String.format(
+                "SELECT `time`,`kind`,`seq`,`reward` FROM `%s` WHERE `bbsname`=? ORDER BY `id` DESC;",
+                getTableName("topstates"));
+        String sqlTimeOnly = String.format(
+                "SELECT `time` FROM `%s` WHERE `bbsname`=? ORDER BY `id` DESC;", getTableName("topstates"));
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sqlFull)) {
             pstmt.setString(1, poster.getBbsname());
             try (ResultSet rs = pstmt.executeQuery()) {
                 try {
@@ -148,17 +197,47 @@ public abstract class SQLer {
                     }
                 } catch (AbstractMethodError ignored) {
                 }
-
                 while (rs.next()) {
-                    list.add(rs.getString("time"));
+                    list.add(readTopState(rs));
                 }
             }
         } catch (Exception e) {
-            KBBSToperCore.logger().severe("查询顶帖记录失败(bbsname=" + poster.getBbsname() + ")", e);
+            // 旧表无扩展列时回退到 time-only 查询
+            try (PreparedStatement pstmt = getConnection().prepareStatement(sqlTimeOnly)) {
+                pstmt.setString(1, poster.getBbsname());
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(new TopState(rs.getString("time"), 0, 0, null));
+                    }
+                }
+            } catch (Exception e2) {
+                KBBSToperCore.logger().severe("查询顶帖记录失败(bbsname=" + poster.getBbsname() + ")", e2);
+            }
         } finally {
             readlock.unlock();
         }
         return list;
+    }
+
+    /** 从结果集读取一条记录，kind/seq/reward 列缺失时容错为默认值。 */
+    private static TopState readTopState(ResultSet rs) throws Exception {
+        String time = rs.getString("time");
+        int kind = 0;
+        int seq = 0;
+        String reward = null;
+        try {
+            kind = rs.getInt("kind");
+        } catch (Exception ignored) {
+        }
+        try {
+            seq = rs.getInt("seq");
+        } catch (Exception ignored) {
+        }
+        try {
+            reward = rs.getString("reward");
+        } catch (Exception ignored) {
+        }
+        return new TopState(time, kind, seq, reward);
     }
 
     /**

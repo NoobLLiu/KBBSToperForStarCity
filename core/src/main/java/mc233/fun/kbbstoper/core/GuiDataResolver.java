@@ -3,6 +3,7 @@ package mc233.fun.kbbstoper.core;
 import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
+import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.sql.SQLer;
 
 import java.text.SimpleDateFormat;
@@ -39,7 +40,7 @@ public final class GuiDataResolver {
         if (poster == null || poster.getBbsname() == null || poster.getBbsname().isBlank()) {
             return 0;
         }
-        List<String> states = poster.getTopStates();
+        List<TopState> states = poster.getTopStates();
         return states == null ? 0 : states.size();
     }
 

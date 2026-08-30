@@ -17,16 +17,18 @@ public enum FormAction {
     POST,
     /** 活动规则。 */
     RULES,
+    /** 帮助（指令速查）。 */
+    HELP,
     /** 管理菜单（OP）。 */
     MANAGE,
     /** 打开测试奖励子菜单（OP）。 */
     TEST_REWARD,
     /** 测试奖励 - 普通（OP）。 */
     TEST_NORMAL,
-    /** 测试奖励 - 激励（OP）。 */
-    TEST_INCENTIVE,
-    /** 测试奖励 - 休息日（OP）。 */
-    TEST_OFFDAY,
+    /** 测试奖励 - 高峰期（OP）。 */
+    TEST_PEAK,
+    /** 测试奖励 - 满级效果（OP）。 */
+    TEST_MAX,
     /** 顶帖列表（全服，OP）。 */
     LIST,
     /** 检查绑定（OP）。 */

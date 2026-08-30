@@ -97,7 +97,7 @@ public class Poster {
         this.rewardlevel = rewardlevel;
     }
 
-    public List<String> getTopStates() {
+    public List<TopState> getTopStates() {
         return sql.getTopStatesFromPoster(this);
     }
 }

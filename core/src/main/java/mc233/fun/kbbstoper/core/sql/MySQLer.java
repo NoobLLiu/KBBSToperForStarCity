@@ -113,7 +113,9 @@ public class MySQLer extends SQLer {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
-            KBBSToperCore.logger().warning("关闭数据库连接失败", e);
+            KBBSToperCore.logger().warning("创建顶帖记录表失败", e);
         }
+        // 迁移到带 kind/seq/reward 列的新结构（旧库已在用, 不能丢数据）
+        migrateTopStatesColumns();
     }
 }

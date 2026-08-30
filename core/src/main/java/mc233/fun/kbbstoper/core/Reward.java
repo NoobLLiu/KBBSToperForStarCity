@@ -135,6 +135,36 @@ public class Reward {
         return isPeakHour(Calendar.getInstance());
     }
 
+    /** 给定顶帖时间字符串是否处于高峰期（用于记录「类型」判断）。 */
+    public static boolean isPeakForTime(String timeStr) {
+        return isPeakHour(parseDateToCalendar(timeStr, BBS_FORMAT));
+    }
+
+    /** 一次有效顶帖的发放结果，供调用方写入「我的顶帖记录」。 */
+    public static final class RewardResult {
+        public final int levelGain;
+        public final int newLevel;
+        public final int newMaxHp;
+        public final double multiplier;
+        public final double growthGranted;
+        public final double starPoints;
+        public final boolean peak;
+        /** 记录页展示用的奖励文案。 */
+        public final String rewardText;
+
+        RewardResult(int levelGain, int newLevel, int newMaxHp, double multiplier,
+                     double growthGranted, double starPoints, boolean peak, String rewardText) {
+            this.levelGain = levelGain;
+            this.newLevel = newLevel;
+            this.newMaxHp = newMaxHp;
+            this.multiplier = multiplier;
+            this.growthGranted = growthGranted;
+            this.starPoints = starPoints;
+            this.peak = peak;
+            this.rewardText = rewardText;
+        }
+    }
+
     /** 同一玩家距上次顶帖是否短于配置的间隔(分钟)。 */
     public boolean isIntervalTooShort(Calendar thispost, int index) {
         int limit = intervalMinutes();
@@ -170,19 +200,19 @@ public class Reward {
 
     // ================= 奖励发放 =================
 
-    /** 发放奖励(累计奖励等级模型)。 */
-    public void award() {
-        applyCumulativeAward();
+    /** 发放奖励(累计奖励等级模型)，返回本次结果（失败返回 null）。 */
+    public RewardResult award() {
+        return applyCumulativeAward();
     }
 
-    /** Apply the cumulative reward-level rules for one valid post. */
-    public boolean applyCumulativeAward() {
+    /** Apply the cumulative reward-level rules for one valid post. 失败返回 null。 */
+    public RewardResult applyCumulativeAward() {
         Calendar thispost = parseDateToCalendar(crawler.Time.get(index), BBS_FORMAT);
         if (isIntervalTooShort(thispost, index)) {
             player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
                     .replaceAll("%TIME%", crawler.Time.get(index))
                     .replaceAll("%INTERVAL%", String.valueOf(intervalMinutes())));
-            return false;
+            return null;
         }
 
         String name = player.getName();
@@ -217,8 +247,20 @@ public class Reward {
             });
         }
 
+        // 记录页展示用奖励文案
+        String mult = formatValue(multiplier);
+        StringBuilder rewardText = new StringBuilder();
+        rewardText.append("等级+").append(levelGain)
+                .append(" (").append(newLevel).append("/").append(maxLevel()).append(")")
+                .append(", 生命上限").append(newMaxHp)
+                .append(", 倍率x").append(mult)
+                .append(", 成长+").append(formatValue(growthGranted));
+        if (starPoints > 0) {
+            rewardText.append(", 星光点+").append(formatValue(starPoints));
+        }
+
         sendRewardSummary(crawler.Time.get(index), levelGain, newLevel, newMaxHp, growthGranted, starPoints);
-        return true;
+        return new RewardResult(levelGain, newLevel, newMaxHp, multiplier, growthGranted, starPoints, isPeak, rewardText.toString());
     }
 
     /** 把等级钳制到 [0, max]。 */

@@ -9,6 +9,7 @@ import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.PlaceholderResolver;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
 import org.bukkit.Bukkit;
@@ -75,7 +76,7 @@ public final class BedrockForm {
     private enum FormAction {
         BINDING, REWARD, MY_RECORDS, MY_STATUS, TOP, POST, RULES, MANAGE, HELP,
         PREV_PAGE, NEXT_PAGE, BACK,
-        TEST_REWARD, TEST_NORMAL, TEST_INCENTIVE, TEST_OFFDAY,
+        TEST_REWARD, TEST_NORMAL, TEST_PEAK, TEST_MAX,
         LIST, CHECK, DELETE, RELOAD, DEBUG,
         DEBUG_CLEAR, DEBUG_STATUS, DEBUG_SIMULATE,
         BACK_MANAGE
@@ -499,9 +500,23 @@ public final class BedrockForm {
     public static void openRecords(Player player, int page) {
         KBBSToperCore.scheduler().runAsync(() -> {
             Poster poster = GuiDataResolver.poster(new BukkitPlayer(player));
-            List<String> all = (poster == null) ? new ArrayList<>() : new ArrayList<>(poster.getTopStates());
+            List<TopState> states = (poster == null) ? new ArrayList<>() : poster.getTopStates();
+            List<String> lines = new ArrayList<>();
+            for (TopState ts : states) {
+                String kind = ts.isPeak() ? Message.FORM2_RECORD_PEAK.getString()
+                        : Message.FORM2_RECORD_OFFPEAK.getString();
+                String seq = ts.seq <= 0 ? "?" : String.valueOf(ts.seq);
+                StringBuilder sb = new StringBuilder();
+                sb.append(ts.time).append(" | ").append(kind).append(" 第").append(seq).append("次");
+                if (ts.hasReward()) {
+                    sb.append(" | ").append(ts.reward);
+                } else {
+                    sb.append(" | ").append(Message.FORM2_RECORD_NOREWARD.getString());
+                }
+                lines.add(sb.toString());
+            }
             KBBSToperCore.scheduler().runSync(() ->
-                    sendPagedForm(player, Message.FORM2_RECORDS_TITLE.getString("我的顶帖记录"), "records", page, all));
+                    sendPagedForm(player, Message.FORM2_RECORDS_TITLE.getString("我的顶帖记录"), "records", page, lines));
         });
     }
 
@@ -669,9 +684,9 @@ public final class BedrockForm {
         RefForm form = RefForm.simple(fmt(Message.FORM2_TEST_TITLE.getString("测试奖励")), "");
         List<FormAction> actions = new ArrayList<>();
 
-        addMenu(form, actions, Message.FORM2_TEST_NORMAL.getString("普通奖励"), FormAction.TEST_NORMAL);
-        addMenu(form, actions, Message.FORM2_TEST_INCENTIVE.getString("激励奖励"), FormAction.TEST_INCENTIVE);
-        addMenu(form, actions, Message.FORM2_TEST_OFFDAY.getString("休息日奖励"), FormAction.TEST_OFFDAY);
+        addMenu(form, actions, Message.FORM2_TEST_NORMAL.getString("平峰期顶帖"), FormAction.TEST_NORMAL);
+        addMenu(form, actions, Message.FORM2_TEST_PEAK.getString("高峰期顶帖"), FormAction.TEST_PEAK);
+        addMenu(form, actions, Message.FORM2_TEST_MAX.getString("满级效果预览"), FormAction.TEST_MAX);
         addMenu(form, actions, Message.FORM2_BACK.getString("返回管理菜单"), FormAction.BACK_MANAGE);
 
         final List<FormAction> finalActions = actions;
@@ -694,11 +709,11 @@ public final class BedrockForm {
             case TEST_NORMAL:
                 runCommand(player, "testreward", "normal");
                 break;
-            case TEST_INCENTIVE:
-                runCommand(player, "testreward", "incentive");
+            case TEST_PEAK:
+                runCommand(player, "testreward", "peak");
                 break;
-            case TEST_OFFDAY:
-                runCommand(player, "testreward", "offday");
+            case TEST_MAX:
+                runCommand(player, "testreward", "max");
                 break;
             case BACK_MANAGE:
                 openManage(player);

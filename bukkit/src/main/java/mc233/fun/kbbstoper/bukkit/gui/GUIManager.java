@@ -93,13 +93,13 @@ public class GUIManager implements Listener {
                 p.closeInventory();
                 KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "normal"});
                 break;
-            case TEST_INCENTIVE:
+            case TEST_PEAK:
                 p.closeInventory();
-                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "incentive"});
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "peak"});
                 break;
-            case TEST_OFFDAY:
+            case TEST_MAX:
                 p.closeInventory();
-                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "offday"});
+                KBBSToperCore.cli().onCommand(BukkitSender.of(p), new String[]{"testreward", "max"});
                 break;
             case LIST:
                 p.closeInventory();

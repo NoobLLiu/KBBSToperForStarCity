@@ -92,6 +92,9 @@ public class FormListener implements Listener {
             case RULES:
                 FormRouter.openRulesForm(player);
                 break;
+            case HELP:
+                FormRouter.openHelpForm(player);
+                break;
             case MANAGE:
                 FormRouter.openManageForm(player);
                 break;
@@ -204,11 +207,11 @@ public class FormListener implements Listener {
             case TEST_NORMAL:
                 cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "normal"});
                 break;
-            case TEST_INCENTIVE:
-                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "incentive"});
+            case TEST_PEAK:
+                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "peak"});
                 break;
-            case TEST_OFFDAY:
-                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "offday"});
+            case TEST_MAX:
+                cli.onCommand(NukkitSender.of(player), new String[]{"testreward", "max"});
                 break;
             case LIST:
                 cli.onCommand(NukkitSender.of(player), new String[]{"list"});

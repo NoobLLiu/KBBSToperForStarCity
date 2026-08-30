@@ -7,10 +7,14 @@ import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
 import mc233.fun.kbbstoper.core.Reward;
+import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -75,7 +79,10 @@ public class RewardCommandHandler implements CommandHandler {
         List<String> temp = new ArrayList<>();
 
         // 已入库的顶帖记录只查一次, 循环里复用, 避免 N+1 查询
-        List<String> alreadyRewarded = poster.getTopStates();
+        Set<String> alreadyRewarded = new HashSet<>();
+        for (TopState s : poster.getTopStates()) {
+            alreadyRewarded.add(s.time);
+        }
 
         for (int i = 0; i < crawler.ID.size(); i++) {
             if (!crawler.ID.get(i).equalsIgnoreCase(poster.getBbsname())) {
@@ -100,12 +107,20 @@ public class RewardCommandHandler implements CommandHandler {
                     poster.setRewardtime(0);
                 }
                 if (poster.getRewardtime() < Option.REWARD_TIMES.getInt()) {
-                    new Reward(player, crawler, i, poster).award();
-                    sql.addTopState(poster.getBbsname(), crawler.Time.get(i));
-                    poster.setRewardtime(poster.getRewardtime() + 1);
-                    issucceed = true;
+                    Reward.RewardResult result = new Reward(player, crawler, i, poster).award();
+                    if (result != null) {
+                        int kind = result.peak ? 1 : 0;
+                        sql.addTopState(poster.getBbsname(), crawler.Time.get(i), kind,
+                                poster.getRewardtime() + 1, result.rewardText);
+                        poster.setRewardtime(poster.getRewardtime() + 1);
+                        issucceed = true;
+                    }
                 } else {
                     isovertime = true;
+                    // 达每日上限: 记录一条"无奖励"的顶帖, 方便玩家在记录页看到上限说明
+                    int kind = Reward.isPeakForTime(crawler.Time.get(i)) ? 1 : 0;
+                    sql.addTopState(poster.getBbsname(), crawler.Time.get(i), kind,
+                            poster.getRewardtime() + 1, null);
                 }
                 temp.add(crawler.Time.get(i));
             }

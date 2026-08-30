@@ -209,16 +209,19 @@ public class Crawler {
             // 超出每日上限: 仅记录顶贴, 不再发奖
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
                     + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " 达上限 → 仅记录顶贴");
-            sql.addTopState(bbsname, time);
+            int kind = Reward.isPeakForTime(time) ? 1 : 0;
+            sql.addTopState(bbsname, time, kind, poster.getRewardtime() + 1, null);
             return;
         }
 
         DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
                 + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " → 调用 applyCumulativeAward() 计算奖励");
-        if (!new Reward(olplayer, this, index, poster).applyCumulativeAward()) {
+        Reward.RewardResult result = new Reward(olplayer, this, index, poster).applyCumulativeAward();
+        if (result == null) {
             return;
         }
-        sql.addTopState(bbsname, time);
+        int kind = result.peak ? 1 : 0;
+        sql.addTopState(bbsname, time, kind, poster.getRewardtime() + 1, result.rewardText);
         poster.setRewardtime(poster.getRewardtime() + 1);
         sql.updatePoster(poster);
 

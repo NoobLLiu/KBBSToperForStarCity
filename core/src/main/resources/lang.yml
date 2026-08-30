@@ -175,6 +175,13 @@ gui2:
     records:
         title: '&d&l我的顶帖记录'
         empty: '&7暂无顶帖记录'
+        #%KIND%=平峰期/高峰期 %SEQ%=当天第几次
+        kind: '&e类型: &f%KIND% &7第%SEQ%次'
+        peak: '&b高峰期'
+        offpeak: '&a平峰期'
+        #%REWARD%=本轮奖励文案
+        reward: '&e奖励: &f%REWARD%'
+        noreward: '&c已达每日上限, 本次无奖励'
     #顶帖排行榜
     top:
         title: '&6&l顶帖排行榜'
@@ -254,6 +261,9 @@ form2:
         title: '我的状态'
     records:
         title: '我的顶帖记录'
+        peak: '高峰期'
+        offpeak: '平峰期'
+        noreward: '已达每日上限, 无奖励'
     top:
         title: '顶帖排行榜'
     rules:
@@ -271,6 +281,8 @@ form2:
         normal: '平峰期顶帖'
         incentive: '高峰期顶帖'
         offday: '满级效果预览'
+        peak: '高峰期顶帖'
+        max: '满级效果预览'
     input:
         title: '输入'
         label: '请输入:'

@@ -87,7 +87,7 @@ public class NukkitConfigAdapter implements PlatformConfig {
 
     @Override
     public Set<String> getKeys(boolean deep) {
-        return handle.getKeys().keySet();
+        return handle.getKeys();
     }
 
     @Override
