@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
@@ -12,7 +13,9 @@ import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +37,11 @@ import java.util.regex.Pattern;
  *   <li>开启时若玩家不足 1 级则临时补到 1 级，关闭/提交时连同经验一起还原，
  *       保证任何情况下都能提交，且整个过程不消耗玩家经验。</li>
  * </ol>
+ *
+ * <h2>占位物品防泄漏</h2>
+ * <p>铁砧关闭（ESC 或提交）时，改名槽（第 0 格）的占位纸会被服务端退回玩家背包。
+ * 参考 MGteam-JE 的做法：给占位 / 结果物品打上 {@link NamespacedKey} PDC 标记，
+ * 关闭时扫描玩家背包、副手、光标，移除所有带标记的物品，避免占位纸残留。</p>
  */
 public final class AnvilInput implements InventoryHolder {
 
@@ -42,6 +50,9 @@ public final class AnvilInput implements InventoryHolder {
 
     /** 改名槽占位物品的显示名（提示玩家输入论坛用户名），玩家改名后会被替换掉。 */
     private static final String PLACEHOLDER_NAME = "输入论坛用户名";
+
+    /** 占位 / 结果物品的 PDC 标记键，关闭时据此清理漏到背包的物品。 */
+    private static final String MARKER_KEY = "kbbstoper-anvil-input";
 
     private final Inventory inv;
     private final String guide;
@@ -143,6 +154,36 @@ public final class AnvilInput implements InventoryHolder {
         }
     }
 
+    /**
+     * 关闭时清理：移除所有带 PDC 标记的物品（占位纸 / 结果物品），
+     * 避免铁砧关闭后它们被退回玩家背包而残留。
+     */
+    void cleanupLeaked() {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        PlayerInventory pinv = player.getInventory();
+        for (int i = 0; i < pinv.getSize(); i++) {
+            if (isMarked(pinv.getItem(i))) {
+                pinv.setItem(i, null);
+            }
+        }
+        if (isMarked(pinv.getItemInOffHand())) {
+            pinv.setItemInOffHand(null);
+        }
+        if (isMarked(player.getItemOnCursor())) {
+            player.setItemOnCursor(null);
+        }
+    }
+
+    private boolean isMarked(ItemStack it) {
+        if (it == null || !it.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = it.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer().has(marker(), PersistentDataType.BYTE);
+    }
+
     private void reopen(Player player) {
         Bukkit.getScheduler().runTask(
                 mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(),
@@ -159,6 +200,7 @@ public final class AnvilInput implements InventoryHolder {
                 lore.add(ChatColor.translateAlternateColorCodes('&', line));
             }
             meta.setLore(lore);
+            mark(meta);
             item.setItemMeta(meta);
         }
         return item;
@@ -170,9 +212,19 @@ public final class AnvilInput implements InventoryHolder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
+            mark(meta);
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    /** 给占位 / 结果物品打 PDC 标记。 */
+    private void mark(ItemMeta meta) {
+        meta.getPersistentDataContainer().set(marker(), PersistentDataType.BYTE, (byte) 1);
+    }
+
+    private static NamespacedKey marker() {
+        return new NamespacedKey(mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(), MARKER_KEY);
     }
 
     /** 铁砧标题有 32 字上限。 */

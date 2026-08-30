@@ -14,7 +14,7 @@
 #   config.yml -> 键级迁移(保留你改过的有效配置, 移除已废弃项, 自动补齐新增项默认值),
 #                 旧文件备份为 config_old.yml
 #   lang.yml   -> 整体更新为新版文案, 旧文件备份为 lang_old.yml
-version: 3.7.4_A12
+version: 3.7.4_A13
 
 #DEBUG模式
 debug: false

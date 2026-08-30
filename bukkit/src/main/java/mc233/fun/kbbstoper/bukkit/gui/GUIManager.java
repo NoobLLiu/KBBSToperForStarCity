@@ -231,6 +231,7 @@ public class GUIManager implements Listener {
         InventoryHolder holder = event.getInventory().getHolder();
         if (holder instanceof AnvilInput) {
             ((AnvilInput) holder).restoreXp();
+            ((AnvilInput) holder).cleanupLeaked();
         }
     }
 
