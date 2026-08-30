@@ -8,6 +8,10 @@ import mc233.fun.kbbstoper.core.platform.PlatformConfigSection;
 import java.util.Collections;
 import java.util.List;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Set;
+
 public class NukkitConfigAdapter implements PlatformConfig {
 
     private final Config handle;
@@ -79,5 +83,25 @@ public class NukkitConfigAdapter implements PlatformConfig {
     @Override
     public boolean contains(String path) {
         return handle.exists(path);
+    }
+
+    @Override
+    public Set<String> getKeys(boolean deep) {
+        return handle.getKeys().keySet();
+    }
+
+    @Override
+    public Object getRaw(String path) {
+        return handle.get(path);
+    }
+
+    @Override
+    public void set(String path, Object value) {
+        handle.set(path, value);
+    }
+
+    @Override
+    public void save(File file) throws IOException {
+        handle.save(file);
     }
 }

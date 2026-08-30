@@ -43,10 +43,9 @@ public final class GuiDataResolver {
         return states == null ? 0 : states.size();
     }
 
-    /** 今日可领上限（首顶 + 额外）。 */
+    /** 今日可计入奖励的顶帖次数上限。 */
     public static int todayLimit() {
-        return Math.max(0, Option.REWARD_DAILY_FIRST.getInt())
-                + Math.max(0, Option.REWARD_DAILY_EXTRA.getInt());
+        return Math.max(0, Option.REWARD_TIMES.getInt(3));
     }
 
     /** 宣传帖地址。 */
@@ -104,9 +103,10 @@ public final class GuiDataResolver {
         boolean today = poster.getRewardbefore() != null && poster.getRewardbefore().equals(todayStr);
         int limit = todayLimit();
         int claimed = today ? poster.getRewardtime() : 0;
-        String firstState = claimed >= 1 ? "✓ 已领取" : "✗ 未领取";
-        String extra1 = claimed >= 2 ? "✓ 已领取" : "✗ 未领取";
-        String extra2 = claimed >= 3 ? "✓ 已领取" : "✗ 未领取";
+        int level = Reward.clampLevel(poster.getRewardlevel());
+        int maxLevel = Reward.maxLevel();
+        int nextGain = Reward.isPeakNow() ? Reward.gainPeak() : Reward.gainNormal();
+        int nextLevel = Math.min(maxLevel, level + nextGain);
 
         // 当前数值(优先读 MGactivity 查询接口, 未实现则用本插件记录的目标值 / "—")
         MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
@@ -120,95 +120,100 @@ public final class GuiDataResolver {
         String curGrowth = valStr(mg == null ? -1 : mg.getGrowthValue(name));
         String curStar = starStr(mg == null ? -1 : mg.getStarlightPoints(name));
 
+        StatusCtx ctx = new StatusCtx(claimed, limit, level, maxLevel, nextGain, nextLevel,
+                curHp, curGm, curEm, curGrowth, curStar);
+
         out.add(resolve(player, Message.GUI2_STATUS_BBSID.getString()));
         out.add(resolve(player, Message.GUI2_STATUS_POSTTIMES.getString()));
-        out.add(statusReplace(Message.GUI2_STATUS_TODAY.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_FIRST.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_EXTRA1.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_EXTRA2.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_CURHP.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_CURGM.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_CUREM.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_CURGROWTH.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
-        out.add(statusReplace(Message.GUI2_STATUS_CURSTAR.getString(),
-                claimed, limit, firstState, extra1, extra2, curHp, curGm, curEm, curGrowth, curStar));
+        out.add(statusReplace(Message.GUI2_STATUS_LEVEL.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_TODAY.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_NEXT.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_CURHP.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_CURGM.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_CUREM.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_CURGROWTH.getString(), ctx));
+        out.add(statusReplace(Message.GUI2_STATUS_CURSTAR.getString(), ctx));
         out.add(resolve(player, Message.GUI2_STATUS_REWARDBEFORE.getString()));
         return out;
     }
 
+    /** 状态页实时数值集合。 */
+    private record StatusCtx(int claimed, int limit, int level, int maxLevel,
+                             int nextGain, int nextLevel, int curHp,
+                             String curGm, String curEm, String curGrowth, String curStar) {
+    }
+
     /** 把状态页专属占位符替换成实时计算值。 */
-    private static String statusReplace(String text, int claimed, int limit,
-                                         String firstState, String extra1, String extra2,
-                                         int curHp, String curGm, String curEm,
-                                         String curGrowth, String curStar) {
+    private static String statusReplace(String text, StatusCtx c) {
+        if (text == null) {
+            return "";
+        }
         return text
-                .replace("%TODAY%", String.valueOf(claimed))
-                .replace("%LIMIT%", String.valueOf(limit))
-                .replace("%FIRSTSTATE%", firstState)
-                .replace("%EXTRA1%", extra1)
-                .replace("%EXTRA2%", extra2)
-                .replace("%CURHP%", String.valueOf(curHp))
-                .replace("%CURGM%", curGm)
-                .replace("%CUREM%", curEm)
-                .replace("%CURGROWTH%", curGrowth)
-                .replace("%CURSTAR%", curStar);
+                .replace("%TODAY%", String.valueOf(c.claimed()))
+                .replace("%LIMIT%", String.valueOf(c.limit()))
+                .replace("%LEVEL%", String.valueOf(c.level()))
+                .replace("%MAXLEVEL%", String.valueOf(c.maxLevel()))
+                .replace("%NEXTGAIN%", String.valueOf(c.nextGain()))
+                .replace("%NEXTLEVEL%", String.valueOf(c.nextLevel()))
+                .replace("%CURHP%", String.valueOf(c.curHp()))
+                .replace("%CURGM%", c.curGm())
+                .replace("%CUREM%", c.curEm())
+                .replace("%CURGROWTH%", c.curGrowth())
+                .replace("%CURSTAR%", c.curStar());
     }
 
     /** 活动规则页内容（双端共用文案，全部实时读 config；不展示任何管理/配置向提示）。 */
     public static List<String> rulesLines() {
-        List<String> out = new ArrayList<>();
-        int start = Option.REWARD_PEAK_START.getInt();
-        int end = Option.REWARD_PEAK_END.getInt();
-        int first = Option.REWARD_DAILY_FIRST.getInt();
-        int extra = Option.REWARD_DAILY_EXTRA.getInt();
-        int intervalH = Math.max(1, Option.REWARD_INTERVAL.getInt() / 60);
-        int cap = Option.REWARD_VAL_HP_CAP.getInt();
-        int base = Option.REWARD_VAL_HP_BASE.getInt();
-        int add30 = Math.max(0, cap - base);
+        int start = Reward.peakStart();
+        int end = Reward.peakEnd();
+        int times = todayLimit();
+        int intervalMin = Reward.intervalMinutes();
+        String interval = intervalMin >= 60 && intervalMin % 60 == 0
+                ? (intervalMin / 60) + " 小时" : intervalMin + " 分钟";
+        int base = Reward.hpBase();
+        int cap = Reward.hpCap();
+        int maxLevel = Reward.maxLevel();
+        int gainNormal = Reward.gainNormal();
+        int gainPeak = Reward.gainPeak();
+        int decay = Reward.decayPerMissedDay();
         long growth = (long) Option.REWARD_VAL_GROWTH.getDouble();
-        long addGrowth = (long) Option.REWARD_VAL_ADD_GROWTH.getDouble();
         long star = (long) Option.REWARD_VAL_STAR.getDouble();
+        int perDay = Math.max(1, gainPeak * times);
+        int daysToMax = (maxLevel + perDay - 1) / perDay;
 
-        out.add(Message.GUI2_RULES_PEAK.getString()
-                .replace("%START%", String.valueOf(start))
-                .replace("%END%", String.valueOf(end))
-                .replace("%HOURS%", String.valueOf(Option.REWARD_INACTIVE_HOURS.getInt())));
-        out.add(Message.GUI2_RULES_OFFPEAK.getString()
-                .replace("%START%", String.valueOf(start))
-                .replace("%END%", String.valueOf(end)));
-        out.add(Message.GUI2_RULES_LIMIT.getString()
-                .replace("%FIRST%", String.valueOf(first))
-                .replace("%EXTRA%", String.valueOf(extra))
-                .replace("%INTERVALH%", String.valueOf(intervalH)));
-        out.add(Message.GUI2_RULES_FIRST.getString()
-                .replace("%FIRST%", String.valueOf(first))
-                .replace("%GROWTHMULT%", fmtMult(Option.REWARD_VAL_GROWTH_MULT.getDouble()))
-                .replace("%HP%", String.valueOf(Option.REWARD_VAL_HP_STEP.getInt()))
-                .replace("%GROWTH%", String.valueOf(growth)));
-        out.add(Message.GUI2_RULES_EXTRA.getString()
-                .replace("%EXTRA%", String.valueOf(extra))
-                .replace("%EXPMULT%", fmtMult(Option.REWARD_VAL_EXP_MULT.getDouble()))
-                .replace("%GROWTH%", String.valueOf(growth)));
-        out.add(Message.GUI2_RULES_ADDITIONAL.getString()
-                .replace("%START%", String.valueOf(start))
-                .replace("%END%", String.valueOf(end))
-                .replace("%ADHP%", String.valueOf(Option.REWARD_VAL_ADD_HP_STEP.getInt()))
-                .replace("%ADGROWTH%", String.valueOf(addGrowth))
-                .replace("%STAR%", String.valueOf(star)));
-        out.add(Message.GUI2_RULES_HPCAP.getString()
-                .replace("%CAP%", String.valueOf(cap))
-                .replace("%ADD30%", String.valueOf(add30))
-                .replace("%STREAK%", String.valueOf(Option.REWARD_VAL_STREAK.getInt())));
-        out.add(Message.GUI2_RULES_CUMULATIVE.getString());
+        List<String> out = new ArrayList<>();
+        for (Message key : List.of(Message.GUI2_RULES_HOWTO, Message.GUI2_RULES_PEAK,
+                Message.GUI2_RULES_OFFPEAK, Message.GUI2_RULES_LIMIT, Message.GUI2_RULES_LEVEL,
+                Message.GUI2_RULES_HP, Message.GUI2_RULES_MULT, Message.GUI2_RULES_GROWTH,
+                Message.GUI2_RULES_STAR, Message.GUI2_RULES_DECAY, Message.GUI2_RULES_TIP)) {
+            String line = key.getString();
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            out.add(line
+                    .replace("%START%", String.valueOf(start))
+                    .replace("%END%", String.valueOf(end))
+                    .replace("%TIMES%", String.valueOf(times))
+                    .replace("%INTERVAL%", interval)
+                    .replace("%MAXLEVEL%", String.valueOf(maxLevel))
+                    .replace("%GAINNORMAL%", String.valueOf(gainNormal))
+                    .replace("%GAINPEAK%", String.valueOf(gainPeak))
+                    .replace("%HPBASE%", String.valueOf(base))
+                    .replace("%HPCAP%", String.valueOf(cap))
+                    .replace("%MAXMULT%", fmtMult(Reward.multiplierForLevel(maxLevel)))
+                    .replace("%STEP%", trimNum(Reward.multiplierStep()))
+                    .replace("%GROWTH%", String.valueOf(growth))
+                    .replace("%STAR%", String.valueOf(star))
+                    .replace("%DECAY%", String.valueOf(decay))
+                    .replace("%DAYS%", String.valueOf(daysToMax))
+                    .replace("%PAGEURL%", pageUrl()));
+        }
         return out;
+    }
+
+    /** 数字去掉多余小数：0.1 → "0.1"，2.0 → "2"。 */
+    private static String trimNum(double v) {
+        return v == Math.floor(v) ? String.valueOf((long) v) : String.valueOf(v);
     }
 
     /** 把倍率格式化成可读文本：2.5 → "x2.5"，1.25 → "x1.25"。 */

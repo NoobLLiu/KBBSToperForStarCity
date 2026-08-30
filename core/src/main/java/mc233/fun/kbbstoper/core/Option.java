@@ -40,34 +40,19 @@ public enum Option {
     REWARD_TIMES("reward.times"),
     REWARD_PEAK_START("reward.peak.start-hour"),
     REWARD_PEAK_END("reward.peak.end-hour"),
-    REWARD_DAILY_FIRST("reward.daily.first-limit"),
-    REWARD_DAILY_EXTRA("reward.daily.extra-limit"),
-    REWARD_INACTIVE_HOURS("reward.inactive-hours-for-additional"),
-    REWARD_VAL_GROWTH_MULT("reward.values.growth-multiplier"),
-    REWARD_VAL_EXP_MULT("reward.values.experience-multiplier"),
-    REWARD_VAL_HP_STEP("reward.values.hp-step"),
+    REWARD_LEVEL_MAX("reward.level.max"),
+    REWARD_LEVEL_GAIN_NORMAL("reward.level.gain-normal"),
+    REWARD_LEVEL_GAIN_PEAK("reward.level.gain-peak"),
+    REWARD_LEVEL_MULT_STEP("reward.level.multiplier-step"),
+    REWARD_LEVEL_DECAY("reward.level.decay-per-missed-day"),
     REWARD_VAL_HP_BASE("reward.values.hp-base"),
     REWARD_VAL_HP_CAP("reward.values.hp-hard-cap"),
     REWARD_VAL_GROWTH("reward.values.growth-per-reward"),
-    REWARD_VAL_ADD_HP_STEP("reward.values.additional-hp-step"),
-    REWARD_VAL_ADD_GROWTH("reward.values.additional-growth"),
     REWARD_VAL_STAR("reward.values.star-points"),
-    REWARD_VAL_STREAK("reward.values.streak-break-daily"),
     REWARD_MG_GROWTH_CMD("reward.mgactivity.growth-multiplier-cmd"),
     REWARD_MG_EXP_CMD("reward.mgactivity.experience-multiplier-cmd"),
     REWARD_MG_MAXHP_CMD("reward.mgactivity.setmaxhp-cmd"),
-    REWARD_MG_STREAK_CMD("reward.mgactivity.streak-break-cmd"),
     REWARD_GROWTH_GRANT("reward.growth-grant-commands"),
-    REWARD_ADDITIONAL_ENABLE("reward.additional.enable"),
-    REWARD_COMMANDS("reward.commands"),
-    REWARD_INCENTIVEREWARD_ENABLE("reward.incentivereward.enable"),
-    REWARD_INCENTIVEREWARD_EXTRA("reward.incentivereward.extra"),
-    REWARD_INCENTIVEREWARD_PERIOD("reward.incentivereward.period"),
-    REWARD_INCENTIVEREWARD_COMMANDS("reward.incentivereward.commands"),
-    REWARD_OFFDAYREWARD_ENABLE("reward.offdayreward.enable"),
-    REWARD_OFFDAYREWARD_EXTRA("reward.offdayreward.extra"),
-    REWARD_OFFDAYREWARD_OFFDAYS("reward.offdayreward.offdays"),
-    REWARD_OFFDAYREWARD_COMMANDS("reward.offdayreward.commands"),
     WEBSITE("website");
 
     private static PlatformConfig config;
@@ -113,14 +98,19 @@ public enum Option {
 
     /** 读取小数(倍率等)。键缺失或非数字时返回 0.0。 */
     public double getDouble() {
+        return getDouble(0.0);
+    }
+
+    /** 带缺省值的小数读取，用于旧配置缺失新增键时兜底。 */
+    public double getDouble(double def) {
         String s = config.getString(path);
         if (s == null || s.isBlank()) {
-            return 0.0;
+            return def;
         }
         try {
             return Double.parseDouble(s.trim());
         } catch (NumberFormatException e) {
-            return 0.0;
+            return def;
         }
     }
 }

@@ -81,8 +81,8 @@ gui:
     title: '%PREFIX%'
     frame: '&8我是边框'
     notbound: '&4未绑定KLPBBS账号'
-    incentiverewards: '&b激励奖励'
-    offdayrewards: '&b休息日奖励'
+    #高峰期额外收益提示(%GAIN%=高峰每次提升的等级, %STAR%=高峰额外星光点)
+    peakrewards: '&b高峰期加成(等级 +%GAIN%、星光点 +%STAR%)'
     pagenotvisible: '&c宣传帖目前处于不可视状态'
 
 #基岩版表单界面(Nukkit端专用, Bukkit端忽略这一整节)
@@ -132,7 +132,7 @@ help:
     help: '&3显示帮助信息: &b/bt help'
     binding: '&3绑定论坛账号: &b/bt binding <KLPBBS论坛ID>'
     reward: '&3获取奖励: &b/bt reward'
-    testreward: '&3测试奖励: &b/bt testreward [ normal | incentive | offday ]'
+    testreward: '&3测试奖励: &b/bt testreward [ normal | peak | max ]'
     list: "&3查看顶帖列表: &b/bt list [页码]"
     top: "&3查看所有顶贴玩家排名: &b/bt top [页码]"
     check: '&3检查: &b/bt check < bbsid | player > <值>'
@@ -142,9 +142,9 @@ help:
 
 #OP调试指令
 debug:
-    clear: '&a已清空你的顶帖状态(今日已领次数/上次领奖日/HP上限已重置, 顶帖记录已清除).'
+    clear: '&a已清空你的顶帖状态(奖励等级/今日已领次数/上次领奖日/HP上限已重置, 顶帖记录已清除).'
     status: '&b你的顶帖状态 — 论坛ID: &e%BBSNAME%&b, 上次领奖日: &e%REWARDBEFORE%&b, 今日已顶: &e%REWARDTIME%&b 次, HP上限: &e%MAXHP%'
-    simulate: '&a已模拟一次"检测到你顶帖", 请查看奖励发放与控制台(MGactivity/Vault)响应.'
+    simulate: '&a已模拟一次"检测到你顶帖", 请查看奖励发放与控制台(MGactivity/EssentialsX)响应.'
 
 #=============================================================
 # 双端新 GUI（v2 最终稿）共用文案
@@ -161,10 +161,11 @@ gui2:
         maxhp: '&e生命上限: &f%MAXHP%'
         rewardtime: '&e今日已领: &f%REWARDTIME%/%TODAYLIMIT% 次'
         rewardbefore: '&e上次领奖日: &f%REWARDBEFORE%'
-        today: '&e今日已领取: &f%TODAY%/%LIMIT% 次'
-        first: '&e  • 首次顶帖: &f%FIRSTSTATE%'
-        extra1: '&e  • 额外顶帖(1): &f%EXTRA1%'
-        extra2: '&e  • 额外顶帖(2): &f%EXTRA2%'
+        #%LEVEL%=当前奖励等级 %MAXLEVEL%=等级上限
+        level: '&e奖励等级: &f%LEVEL% &7/ %MAXLEVEL%'
+        today: '&e今日已计入: &f%TODAY%/%LIMIT% 次'
+        #%NEXTGAIN%=下一次顶帖能提升的等级(按当前时段) %NEXTLEVEL%=提升后的等级
+        next: '&e下次顶帖: &a+%NEXTGAIN% 级 &7→ &f%NEXTLEVEL% 级'
         curhp: '&e当前生命上限: &f%CURHP%'
         curgm: '&e当前成长倍率: &f%CURGM%'
         curem: '&e当前经验倍率: &f%CUREM%'
@@ -178,17 +179,25 @@ gui2:
     top:
         title: '&6&l顶帖排行榜'
         empty: '&7暂无排行数据'
-    #活动规则
+    #活动规则(等级制)
+    #可用占位符: %START% %END% 高峰期起止小时 | %TIMES% 每日计入次数 | %INTERVAL% 顶帖最小间隔
+    #            %MAXLEVEL% 等级上限 | %GAINNORMAL% 平峰+级 | %GAINPEAK% 高峰+级
+    #            %HPBASE% 生命基准 | %HPCAP% 生命硬上限 | %STEP% 每级倍率增量 | %MAXMULT% 满级倍率
+    #            %GROWTH% 每次成长值 | %STAR% 高峰星光点 | %DECAY% 断签每日扣级 | %DAYS% 满级预计天数
+    #某一行留空('')即在规则页隐藏该行
     rules:
         title: '&6&l活动规则'
-        peak: '&e【高峰期】&f%START%:00-%END%:00 顶帖 &7或 &f距上次全服顶帖超 %HOURS% 小时的新顶帖'
-        offpeak: '&e【平峰期】&f%END%:00-%START%:00'
-        limit: '&e【顶贴上限】&f每日首顶 %FIRST% 次 + 额外 %EXTRA% 次；超出仅记录不奖励；两次顶贴间隔≥%INTERVALH%小时；倍率不叠加，次日自动恢复'
-        first: '&e【普通·每日首顶】&f成长倍率 %GROWTHMULT%、生命上限 +%HP%、成长值 +%GROWTH%'
-        extra: '&e【普通·额外顶贴】&f经验倍率 %EXPMULT%、成长值 +%GROWTH%'
-        additional: '&e【附加顶贴奖励】&f生命上限 +%ADHP%、成长值 +%ADGROWTH%、星光点 +%STAR%'
-        hpcap: '&e【生命上限】&f可叠加最大至 %CAP%（+%ADD30% 血，一排半爱心）；连签中断每日下降 %STREAK%'
-        cumulative: '&e【累计顶贴奖励】&f敬请期待'
+        howto: '&e【怎么玩】&f去论坛宣传帖回复顶帖, 插件自动检测并提升你的「奖励等级」, 等级越高增益越强'
+        peak: '&e【高峰期】&f%START%:00-%END%:00 顶帖, 奖励等级 &a+%GAINPEAK%'
+        offpeak: '&e【平峰期】&f%END%:00-次日%START%:00 顶帖, 奖励等级 &a+%GAINNORMAL%'
+        limit: '&e【每日上限】&f每天最多计入 %TIMES% 次; 同一人两次顶帖至少间隔 %INTERVAL%; 超出仅记录不发奖'
+        level: '&e【奖励等级】&f上限 %MAXLEVEL% 级, 跨天保留 —— 只要每天都顶帖, 等级就一直在'
+        hp: '&e【生命上限】&f%HPBASE% + 奖励等级, 最高 %HPCAP%'
+        mult: '&e【成长/经验倍率】&f1 + 等级 × %STEP%, 满级 %MAXMULT%'
+        growth: '&e【成长值】&f每次有效顶帖 +%GROWTH%'
+        star: '&e【星光点】&f高峰期顶帖额外 +%STAR%'
+        decay: '&e【断签惩罚】&f漏顶一整天, 奖励等级 -%DECAY%; 连续漏几天按天累计扣'
+        tip: '&e【小提示】&f每天在高峰期顶满 %TIMES% 次, 约 %DAYS% 天即可到满级'
     #管理菜单
     manage:
         title: '&c&l管理菜单'
@@ -198,12 +207,12 @@ gui2:
         delete: '&c删除玩家数据'
         reload: '&a重载插件'
         debug: '&e调试'
-    #测试奖励子菜单
+    #测试奖励子菜单(模拟一次奖励效果, 不写数据库)
     test:
         title: '&b&l测试奖励'
-        normal: '&a普通奖励'
-        incentive: '&e激励奖励'
-        offday: '&b休息日奖励'
+        normal: '&a平峰期顶帖'
+        incentive: '&e高峰期顶帖'
+        offday: '&b满级效果预览'
     #帮助
     help:
         title: '&3&l帮助'
@@ -259,9 +268,9 @@ form2:
         debug: '调试'
     test:
         title: '测试奖励'
-        normal: '普通奖励'
-        incentive: '激励奖励'
-        offday: '休息日奖励'
+        normal: '平峰期顶帖'
+        incentive: '高峰期顶帖'
+        offday: '满级效果预览'
     input:
         title: '输入'
         label: '请输入:'

@@ -12,22 +12,27 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/** 奖励判定与发放(StarCity 魔改版)。 */
+/**
+ * 奖励判定与发放(StarCity 魔改版, "累计奖励等级"模型)。
+ *
+ * <p>规则要点(全部取自 config.yml, 无硬编码)：
+ * <ul>
+ *   <li>每次有效顶帖: 平峰 +{@code reward.level.gain-normal} 级, 高峰 +{@code reward.level.gain-peak} 级,
+ *       封顶 {@code reward.level.max}。</li>
+ *   <li>生命上限 = {@code reward.values.hp-base} + 等级, 不超过 {@code reward.values.hp-hard-cap}。</li>
+ *   <li>成长/经验倍率 = 1 + 等级 × {@code reward.level.multiplier-step}。</li>
+ *   <li>每次有效顶帖发放成长值 {@code reward.values.growth-per-reward}。</li>
+ *   <li>高峰期顶帖额外发放星光点 {@code reward.values.star-points}(走 EssentialsX 经济)。</li>
+ *   <li>断签: 每漏掉一整天扣 {@code reward.level.decay-per-missed-day} 级。</li>
+ * </ul>
+ */
 public class Reward {
-
-    public static final int MAX_REWARD_LEVEL = 20;
-    public static final int DAILY_REWARD_LIMIT = 3;
-    public static final int MIN_POST_INTERVAL_MINUTES = 120;
-    public static final int NORMAL_LEVEL_GAIN = 1;
-    public static final int PEAK_LEVEL_GAIN = 2;
-    public static final int DAILY_LEVEL_DECAY = 2;
 
     private final PlatformPlayer player;
     private final Crawler crawler;
     private final int index;
     private final Poster poster;
 
-    private static final Pattern UPCASE_PATTERN = Pattern.compile("^[A-Z]+$");
     private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{2}-\\d{2}$");
     private static final SimpleDateFormat DAY_FORMAT = new SimpleDateFormat("yyyy-M-dd");
     private static final SimpleDateFormat BBS_FORMAT = new SimpleDateFormat("yyyy-M-d HH:mm");
@@ -39,10 +44,64 @@ public class Reward {
         this.poster = poster;
     }
 
-    /** 兼容无 poster 的测试调用(按"首顶+附加"测试)。 */
+    /** 兼容无 poster 的测试调用。 */
     public Reward(PlatformPlayer player, Crawler crawler, int index) {
         this(player, crawler, index, null);
     }
+
+    // ================= 配置读取(带默认值, 旧配置缺键也不会读成 0) =================
+
+    /** 奖励等级上限。 */
+    public static int maxLevel() {
+        return Math.max(1, Option.REWARD_LEVEL_MAX.getInt(20));
+    }
+
+    /** 平峰期每次有效顶帖提升的等级。 */
+    public static int gainNormal() {
+        return Math.max(0, Option.REWARD_LEVEL_GAIN_NORMAL.getInt(1));
+    }
+
+    /** 高峰期每次有效顶帖提升的等级。 */
+    public static int gainPeak() {
+        return Math.max(0, Option.REWARD_LEVEL_GAIN_PEAK.getInt(2));
+    }
+
+    /** 每级倍率增量(成长/经验倍率 = 1 + 等级 × step)。 */
+    public static double multiplierStep() {
+        return Math.max(0, Option.REWARD_LEVEL_MULT_STEP.getDouble(0.1));
+    }
+
+    /** 断签时每漏掉一整天扣减的等级。 */
+    public static int decayPerMissedDay() {
+        return Math.max(0, Option.REWARD_LEVEL_DECAY.getInt(2));
+    }
+
+    /** 同一玩家两次有效顶帖的最小间隔(分钟), 0 = 不限制。 */
+    public static int intervalMinutes() {
+        return Math.max(0, Option.REWARD_INTERVAL.getInt(120));
+    }
+
+    /** 生命上限基准值。 */
+    public static int hpBase() {
+        return Option.REWARD_VAL_HP_BASE.getInt(20);
+    }
+
+    /** 生命上限硬上限。 */
+    public static int hpCap() {
+        return Option.REWARD_VAL_HP_CAP.getInt(50);
+    }
+
+    /** 高峰期时段起始小时(含)。 */
+    public static int peakStart() {
+        return Option.REWARD_PEAK_START.getInt(10);
+    }
+
+    /** 高峰期时段结束小时(不含)。 */
+    public static int peakEnd() {
+        return Option.REWARD_PEAK_END.getInt(22);
+    }
+
+    // ================= 通用工具 =================
 
     private static Calendar parseDateToCalendar(String dateStr, SimpleDateFormat dateFormat) {
         Calendar calendar = Calendar.getInstance();
@@ -59,49 +118,29 @@ public class Reward {
         return calendar;
     }
 
-    /** 判断能否发激励奖励(保留给 GUI 提示, 兼容旧逻辑)。 */
-    public static boolean canIncentiveReward(Calendar current, Calendar before) {
-        if (Option.REWARD_INCENTIVEREWARD_ENABLE.getBoolean()) {
-            Calendar copyofcurrent = (Calendar) before.clone();
-            copyofcurrent.add(Calendar.MINUTE, Option.REWARD_INCENTIVEREWARD_PERIOD.getInt());
-            return copyofcurrent.before(current);
+    /** 当前时间是否处于配置的高峰期 [start-hour, end-hour)。 */
+    public static boolean isPeakHour(Calendar cal) {
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+        int start = peakStart();
+        int end = peakEnd();
+        if (start <= end) {
+            return hour >= start && hour < end;
         }
-        return false;
+        // 跨午夜的高峰段(本设计不需要, 保留兼容)
+        return hour >= start || hour < end;
     }
 
-    /** 判断当前时间是否落在配置的休息日上(保留给 GUI 提示)。 */
-    public static boolean canOffDayReward(Calendar current) {
-        if (Option.REWARD_OFFDAYREWARD_ENABLE.getBoolean()) {
-            for (String day : Option.REWARD_OFFDAYREWARD_OFFDAYS.getStringList()) {
-                if (UPCASE_PATTERN.matcher(day).matches()) {
-                    int dayofweek = getDayOfWeekFromString(day);
-                    if (dayofweek == current.get(Calendar.DAY_OF_WEEK)) {
-                        return true;
-                    }
-                } else if (DATE_PATTERN.matcher(day).matches()) {
-                    SimpleDateFormat offdayformat = new SimpleDateFormat("M-dd");
-                    Calendar offdaycalendar = parseDateToCalendar(day, offdayformat);
-                    if (current.get(Calendar.MONTH) == offdaycalendar.get(Calendar.MONTH)
-                            && current.get(Calendar.DAY_OF_MONTH) == offdaycalendar.get(Calendar.DAY_OF_MONTH)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private static int getDayOfWeekFromString(String day) {
-        try {
-            return Calendar.class.getField(day).getInt(null);
-        } catch (Exception e) {
-            KBBSToperCore.logger().warning("无法识别的休息日配置：" + day);
-            return -1;
-        }
+    /** 此刻是否处于高峰期。 */
+    public static boolean isPeakNow() {
+        return isPeakHour(Calendar.getInstance());
     }
 
     /** 同一玩家距上次顶帖是否短于配置的间隔(分钟)。 */
     public boolean isIntervalTooShort(Calendar thispost, int index) {
+        int limit = intervalMinutes();
+        if (limit <= 0 || crawler == null) {
+            return false;
+        }
         Date thispostDate = thispost.getTime();
         for (int x = index + 1; x < crawler.Time.size(); x++) {
             if (!crawler.ID.get(x).equalsIgnoreCase(crawler.ID.get(index))) {
@@ -117,7 +156,7 @@ public class Reward {
                     continue;
                 }
                 long minutes = (thispostDate.getTime() - lastDate.getTime()) / (1000 * 60);
-                if (minutes < MIN_POST_INTERVAL_MINUTES) {
+                if (minutes < limit) {
                     return true;
                 } else {
                     break;
@@ -129,129 +168,11 @@ public class Reward {
         return false;
     }
 
-    /** 当前时间是否处于配置的高峰期 [start-hour, end-hour)。 */
-    private static boolean isPeakHour(Calendar cal) {
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-        int start = Option.REWARD_PEAK_START.getInt();
-        int end = Option.REWARD_PEAK_END.getInt();
-        if (start <= end) {
-            return hour >= start && hour < end;
-        } else {
-            // 跨午夜的高峰段(本设计不需要, 保留兼容)
-            return hour >= start || hour < end;
-        }
-    }
+    // ================= 奖励发放 =================
 
-    /** 距上一次全服顶贴是否已超过配置的小时数。 */
-    private boolean isInactiveLongEnough(Calendar thispost) {
-        long needMillis = Option.REWARD_INACTIVE_HOURS.getInt() * 60L * 60 * 1000;
-        Calendar last = null;
-        for (int x = index + 1; x < crawler.Time.size(); x++) {
-            String timeStr = crawler.Time.get(x);
-            if (timeStr == null || timeStr.isBlank()) {
-                continue;
-            }
-            last = parseDateToCalendar(timeStr, BBS_FORMAT);
-            break;
-        }
-        if (last == null) {
-            // 没有更早的记录, 视为长期无人顶贴
-            return true;
-        }
-        long gap = thispost.getTime().getTime() - last.getTime().getTime();
-        return gap >= needMillis;
-    }
-
-    /** 发放奖励(按首顶/额外分档, 叠加附加奖励)。 */
+    /** 发放奖励(累计奖励等级模型)。 */
     public void award() {
         applyCumulativeAward();
-    }
-
-    private void legacyAward() {
-        Calendar thispost = parseDateToCalendar(crawler.Time.get(index), BBS_FORMAT);
-
-        if (Option.REWARD_INTERVAL.getInt() > 0 && isIntervalTooShort(thispost, index)) {
-            player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
-                    .replaceAll("%TIME%", crawler.Time.get(index))
-                    .replaceAll("%INTERVAL%", String.valueOf(Option.REWARD_INTERVAL.getInt())));
-            return;
-        }
-
-        // 档位: 基于当日已领次数(本次之前的计数)
-        int rt = (poster != null) ? poster.getRewardtime() : 0;
-        int firstLimit = Option.REWARD_DAILY_FIRST.getInt();
-        int extraLimit = Option.REWARD_DAILY_EXTRA.getInt();
-        boolean isFirst = rt < firstLimit;
-        boolean isExtra = !isFirst && rt < (firstLimit + extraLimit);
-
-        boolean isPeak = isPeakHour(thispost);
-        boolean inactive = isInactiveLongEnough(thispost);
-        boolean additional = Option.REWARD_ADDITIONAL_ENABLE.getBoolean() && (isPeak || inactive);
-
-        List<String> cmds = new ArrayList<>();
-        String name = player.getName();
-
-        // 基础: 成长值 +growth-per-reward (每次有效奖励) —— 始终走命令(成长值接口不在 MGactivity API 内)
-        cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
-                Option.REWARD_VAL_GROWTH.getDouble()));
-
-        // HP 步进: 首顶 +hp-step; 附加奖励再 +additional-hp-step
-        int hpStep = 0;
-        if (isFirst) {
-            hpStep += Option.REWARD_VAL_HP_STEP.getInt();
-        }
-        if (additional) {
-            hpStep += Option.REWARD_VAL_ADD_HP_STEP.getInt();
-            // 附加奖励再发一次成长值(+additional-growth) —— 走命令
-            cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
-                    Option.REWARD_VAL_ADD_GROWTH.getDouble()));
-        }
-
-        // 生命值上限累加并钳制
-        int base = Option.REWARD_VAL_HP_BASE.getInt();
-        int cap = Option.REWARD_VAL_HP_CAP.getInt();
-        int current = (poster != null) ? poster.getMaxhp() : base;
-        if (current < base) {
-            current = base;
-        }
-        int newMaxHp = Math.min(cap, current + hpStep);
-        if (poster != null) {
-            poster.setMaxhp(newMaxHp);
-        }
-
-        // 星光点(仅附加奖励发放)
-        double starPoints = additional ? Option.REWARD_VAL_STAR.getInt() : 0;
-
-        // MGactivity 效果(倍率/HP): 优先走 Java API, 否则回退控制台命令
-        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
-        MgEffect effect;
-        if (mg != null) {
-            effect = new MgEffect(isFirst, Option.REWARD_VAL_GROWTH_MULT.getDouble(),
-                    isExtra, Option.REWARD_VAL_EXP_MULT.getDouble(), true, newMaxHp);
-        } else {
-            effect = new MgEffect(false, 0, false, 0, false, 0);
-            if (isFirst) {
-                cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name,
-                        Option.REWARD_VAL_GROWTH_MULT.getDouble()));
-            }
-            if (isExtra) {
-                cmds.add(buildMgCommand(Option.REWARD_MG_EXP_CMD.getString(), name,
-                        Option.REWARD_VAL_EXP_MULT.getDouble()));
-            }
-            cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, newMaxHp));
-        }
-
-        dispatch(name, cmds, starPoints, mg, effect);
-
-        // 成长值本次实际发放量(仅当配置了成长值发放命令时)
-        double growthGranted = 0;
-        if (!Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()) {
-            growthGranted += Option.REWARD_VAL_GROWTH.getDouble();
-            if (additional) {
-                growthGranted += Option.REWARD_VAL_ADD_GROWTH.getDouble();
-            }
-        }
-        sendRewardSummary(name, isFirst, isExtra, hpStep, newMaxHp, starPoints, growthGranted);
     }
 
     /** Apply the cumulative reward-level rules for one valid post. */
@@ -260,22 +181,20 @@ public class Reward {
         if (isIntervalTooShort(thispost, index)) {
             player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
                     .replaceAll("%TIME%", crawler.Time.get(index))
-                    .replaceAll("%INTERVAL%", String.valueOf(MIN_POST_INTERVAL_MINUTES)));
+                    .replaceAll("%INTERVAL%", String.valueOf(intervalMinutes())));
             return false;
         }
 
         String name = player.getName();
-        List<String> cmds = new ArrayList<>();
-        cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
-                Option.REWARD_VAL_GROWTH.getDouble()));
+        List<String> cmds = new ArrayList<>(replacePlayerValue(
+                Option.REWARD_GROWTH_GRANT.getStringList(), name, Option.REWARD_VAL_GROWTH.getDouble()));
 
         boolean isPeak = isPeakHour(thispost);
         int oldLevel = poster == null ? 0 : clampLevel(poster.getRewardlevel());
-        int gain = isPeak ? PEAK_LEVEL_GAIN : NORMAL_LEVEL_GAIN;
-        int newLevel = Math.min(MAX_REWARD_LEVEL, oldLevel + gain);
+        int gain = isPeak ? gainPeak() : gainNormal();
+        int newLevel = Math.min(maxLevel(), oldLevel + gain);
         int levelGain = newLevel - oldLevel;
-        int base = Option.REWARD_VAL_HP_BASE.getInt();
-        int newMaxHp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(), base + newLevel);
+        int newMaxHp = hpForLevel(newLevel);
         if (poster != null) {
             poster.setRewardlevel(newLevel);
             poster.setMaxhp(newMaxHp);
@@ -286,27 +205,36 @@ public class Reward {
         double growthGranted = Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()
                 ? 0 : Option.REWARD_VAL_GROWTH.getDouble();
 
-        // 星光点: 沿用我方(A6)对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令)。
-        // 等级制下仅在高峰顶贴发放(对应原设计稿"附加奖励"触发条件之一: 高峰期)。
+        // 星光点: 对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令)。
+        // 等级制下仅在高峰期顶帖发放。
         double starPoints = isPeak ? Option.REWARD_VAL_STAR.getDouble() : 0;
         if (starPoints > 0) {
             final double sp = starPoints;
             KBBSToperCore.scheduler().runSync(() -> {
-                DebugCommandHandler.trace("applyCumulativeAward(" + name + "): 发放星光点 " + sp + " (EssentialsX → /money give 回退)");
+                DebugCommandHandler.trace("applyCumulativeAward(" + name + "): 发放星光点 " + sp
+                        + " (EssentialsX → /money give 回退)");
                 KBBSToperCore.platform().depositEconomy(name, sp);
             });
         }
 
-        sendRewardSummary(name, levelGain, newLevel, newMaxHp, growthGranted);
+        sendRewardSummary(crawler.Time.get(index), levelGain, newLevel, newMaxHp, growthGranted, starPoints);
         return true;
     }
 
-    private static int clampLevel(int level) {
-        return Math.max(0, Math.min(MAX_REWARD_LEVEL, level));
+    /** 把等级钳制到 [0, max]。 */
+    public static int clampLevel(int level) {
+        return Math.max(0, Math.min(maxLevel(), level));
     }
 
+    /** 指定等级对应的成长/经验倍率。 */
     public static double multiplierForLevel(int level) {
-        return 1.0 + clampLevel(level) * 0.1;
+        return 1.0 + clampLevel(level) * multiplierStep();
+    }
+
+    /** 指定等级对应的生命上限(已钳制到 [hp-base, hp-hard-cap])。 */
+    public static int hpForLevel(int level) {
+        int base = hpBase();
+        return Math.max(base, Math.min(hpCap(), base + clampLevel(level)));
     }
 
     private void dispatchLevelState(String name, List<String> cmds, MGactivityApi mg,
@@ -314,9 +242,10 @@ public class Reward {
         final String resetGrowth = "mgactivity resetgrowthmultiplier " + name;
         final String resetExperience = "mgactivity resetexperiencemultiplier " + name;
         KBBSToperCore.scheduler().runSync(() -> {
+            // MGactivity 的 set* 为取最大值；先 reset 才能在断签后正确下降。
+            KBBSToperCore.platform().dispatchConsoleCommand(resetGrowth);
+            KBBSToperCore.platform().dispatchConsoleCommand(resetExperience);
             if (mg == null) {
-                KBBSToperCore.platform().dispatchConsoleCommand(resetGrowth);
-                KBBSToperCore.platform().dispatchConsoleCommand(resetExperience);
                 for (String cmd : cmds) {
                     if (cmd != null && !cmd.isBlank()) {
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);
@@ -330,9 +259,6 @@ public class Reward {
                         Option.REWARD_MG_MAXHP_CMD.getString(), name, maxHp));
                 return;
             }
-            // MGactivity 的 set* 为取最大值；先 reset 才能在断签后正确下降。
-            KBBSToperCore.platform().dispatchConsoleCommand(resetGrowth);
-            KBBSToperCore.platform().dispatchConsoleCommand(resetExperience);
             mg.setGrowthMultiplier(name, multiplier);
             mg.setExperienceMultiplier(name, multiplier);
             mg.setMaxHp(name, maxHp);
@@ -344,18 +270,26 @@ public class Reward {
         });
     }
 
-    private void sendRewardSummary(String name, int levelGain, int level,
-                                   int newMaxHp, double growthGranted) {
-        String details = "奖励等级 +" + levelGain + " (当前 " + level + "/" + MAX_REWARD_LEVEL
-                + "), 生命上限 " + newMaxHp + ", 成长倍率 x" + formatValue(multiplierForLevel(level))
-                + ", 经验倍率 x" + formatValue(multiplierForLevel(level));
+    /** 奖励完成提示：本次等级变化 + 当前生效数值。 */
+    private void sendRewardSummary(String time, int levelGain, int level, int newMaxHp,
+                                   double growthGranted, double starPoints) {
+        String mult = formatValue(multiplierForLevel(level));
+        StringBuilder details = new StringBuilder();
+        details.append("奖励等级 +").append(levelGain)
+                .append(" (当前 ").append(level).append("/").append(maxLevel()).append(")")
+                .append(", 生命上限 ").append(newMaxHp)
+                .append(", 成长倍率 x").append(mult)
+                .append(", 经验倍率 x").append(mult);
         if (growthGranted > 0) {
-            details += " | 成长值 +" + formatValue(growthGranted);
+            details.append(" | 成长值 +").append(formatValue(growthGranted));
+        }
+        if (starPoints > 0) {
+            details.append(" | 星光点 +").append(formatValue(starPoints));
         }
         player.sendMessage(Message.PREFIX.getString()
                 + Message.REWARDSUMMARY.getString()
-                        .replaceAll("%TIME%", crawler.Time.get(index))
-                        .replaceAll("%DETAILS%", details));
+                        .replaceAll("%TIME%", time == null ? "-" : time)
+                        .replaceAll("%DETAILS%", details.toString()));
     }
 
     private static List<String> replacePlayerValue(List<String> list, String name, double value) {
@@ -368,10 +302,13 @@ public class Reward {
     }
 
     private static String buildMgCommand(String template, String name, double value) {
+        if (template == null || template.isBlank()) {
+            return "";
+        }
         return template.replaceAll("%PLAYER%", name).replaceAll("%VALUE%", formatValue(value));
     }
 
-    /** 整数值输出成整数(100.0→100), 小数保留(1.25→1.25), 避免下发 "100.0" 给接口。 */
+    /** 整数值输出成整数(100.0→100), 小数保留(1.2→1.2), 避免下发 "100.0" 给接口。 */
     private static String formatValue(double v) {
         if (!Double.isInfinite(v) && !Double.isNaN(v) && v == Math.rint(v)) {
             return String.valueOf((long) v);
@@ -379,159 +316,62 @@ public class Reward {
         return String.valueOf(v);
     }
 
-    /** 手动测试指定类型的奖励命令。 */
+    /**
+     * 手动模拟一次奖励效果, 用于验证 MGactivity/经济对接(不写数据库)。
+     *
+     * @param type NORMAL = 平峰期一次顶帖; PEAK = 高峰期一次顶帖; MAX = 满级效果
+     */
     public void testAward(String type) {
         String name = player.getName();
-        List<String> cmds = new ArrayList<>();
-        double star = 0;
-        double growthMult = Option.REWARD_VAL_GROWTH_MULT.getDouble();
-        double expMult = Option.REWARD_VAL_EXP_MULT.getDouble();
-        int maxHp;
-        switch (type) {
-            case "NORMAL":
-                cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
-                        Option.REWARD_VAL_GROWTH.getDouble()));
-                maxHp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
-                        Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt());
-                break;
+        int current = 0;
+        Poster p = GuiDataResolver.poster(player);
+        if (p != null) {
+            current = clampLevel(p.getRewardlevel());
+        }
+
+        int level;
+        double star;
+        switch (type == null ? "NORMAL" : type.toUpperCase()) {
+            case "PEAK":
             case "INCENTIVE":
-            case "ADDITIONAL":
-                cmds.addAll(replacePlayerValue(Option.REWARD_GROWTH_GRANT.getStringList(), name,
-                        Option.REWARD_VAL_ADD_GROWTH.getDouble()));
-                maxHp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
-                        Option.REWARD_VAL_HP_BASE.getInt() + Option.REWARD_VAL_HP_STEP.getInt()
-                                + Option.REWARD_VAL_ADD_HP_STEP.getInt());
-                star = Option.REWARD_VAL_STAR.getInt();
+                level = Math.min(maxLevel(), current + gainPeak());
+                star = Option.REWARD_VAL_STAR.getDouble();
+                break;
+            case "MAX":
+            case "OFFDAY":
+                level = maxLevel();
+                star = Option.REWARD_VAL_STAR.getDouble();
+                break;
+            case "NORMAL":
+                level = Math.min(maxLevel(), current + gainNormal());
+                star = 0;
                 break;
             default:
                 return;
         }
-        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
-        MgEffect effect;
-        if (mg != null) {
-            // 测试默认走首顶+HP(不含经验倍率, 与原命令版语义一致)
-            effect = new MgEffect(true, growthMult, false, expMult, true, maxHp);
-        } else {
-            effect = new MgEffect(false, 0, false, 0, false, 0);
-            cmds.add(buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), name, growthMult));
-            cmds.add(buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), name, maxHp));
-        }
-        dispatch(name, cmds, star, mg, effect);
 
-        // 测试奖励同样给出明细提示
-        boolean additional = !"NORMAL".equals(type);
-        int hpStep = additional
-                ? Option.REWARD_VAL_HP_STEP.getInt() + Option.REWARD_VAL_ADD_HP_STEP.getInt()
-                : Option.REWARD_VAL_HP_STEP.getInt();
-        double growthGranted = 0;
-        if (!Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()) {
-            growthGranted = additional ? Option.REWARD_VAL_ADD_GROWTH.getDouble()
-                    : Option.REWARD_VAL_GROWTH.getDouble();
+        int maxHp = hpForLevel(level);
+        double multiplier = multiplierForLevel(level);
+        List<String> cmds = new ArrayList<>(replacePlayerValue(
+                Option.REWARD_GROWTH_GRANT.getStringList(), name, Option.REWARD_VAL_GROWTH.getDouble()));
+        dispatchLevelState(name, cmds, KBBSToperCore.platform().getMGactivityApi(), multiplier, maxHp);
+
+        if (star > 0) {
+            final double sp = star;
+            KBBSToperCore.scheduler().runSync(() -> {
+                DebugCommandHandler.trace("testAward(" + name + "): 发放星光点 " + sp);
+                KBBSToperCore.platform().depositEconomy(name, sp);
+            });
         }
-        sendRewardSummary(name, true, false, hpStep, maxHp, star, growthGranted);
+        double growthGranted = Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()
+                ? 0 : Option.REWARD_VAL_GROWTH.getDouble();
+        sendRewardSummary(DAY_FORMAT.format(new Date()), level - current, level, maxHp, growthGranted, star);
     }
+
+    // ================= 断签 =================
 
     /**
-     * 奖励完成提示：列出本次发放的各奖励明细与当前值。
-     * 成长值/星光点/倍率的"当前值"经 MGactivity 可选查询接口读取，
-     * 未实现（返回 -1）时自动省略，仅显示本次发放量。
-     */
-    private void sendRewardSummary(String name, boolean isFirst, boolean isExtra,
-                                   int hpStep, int newMaxHp, double starPoints,
-                                   double growthGranted) {
-        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
-        List<String> parts = new ArrayList<>();
-
-        if (growthGranted > 0) {
-            double cur = (mg != null) ? mg.getGrowthValue(name) : -1;
-            String seg = "成长值 +" + formatValue(growthGranted);
-            if (cur >= 0) {
-                seg += " (当前 " + formatValue(cur + growthGranted) + ")";
-            }
-            parts.add(seg);
-        }
-        if (isFirst) {
-            double set = Option.REWARD_VAL_GROWTH_MULT.getDouble();
-            double cur = (mg != null) ? mg.getGrowthMultiplier(name) : -1;
-            String seg = "成长倍率 x" + formatValue(set);
-            if (cur > 0) {
-                seg += " (当前 x" + formatValue(Math.max(cur, set)) + ")";
-            }
-            parts.add(seg);
-        }
-        if (isExtra) {
-            double set = Option.REWARD_VAL_EXP_MULT.getDouble();
-            double cur = (mg != null) ? mg.getExperienceMultiplier(name) : -1;
-            String seg = "经验倍率 x" + formatValue(set);
-            if (cur > 0) {
-                seg += " (当前 x" + formatValue(Math.max(cur, set)) + ")";
-            }
-            parts.add(seg);
-        }
-        if (hpStep > 0) {
-            parts.add("生命上限 +" + hpStep + " (当前 " + newMaxHp + ")");
-        }
-        if (starPoints > 0) {
-            long cur = (mg != null) ? mg.getStarlightPoints(name) : -1;
-            String seg = "星光点 +" + formatValue(starPoints);
-            if (cur >= 0) {
-                seg += " (当前 " + (cur + (long) starPoints) + ")";
-            }
-            parts.add(seg);
-        }
-
-        String details = parts.isEmpty() ? "无" : String.join(" | ", parts);
-        player.sendMessage(Message.PREFIX.getString()
-                + Message.REWARDSUMMARY.getString()
-                        .replaceAll("%TIME%", crawler.Time.get(index))
-                        .replaceAll("%DETAILS%", details));
-    }
-
-    /** MGactivity 效果集合(供 dispatch 在主线程判定走 API 还是命令回退)。 */
-    private record MgEffect(boolean growth, double growthMult,
-                             boolean exp, double expMult,
-                             boolean maxHp, int maxHpVal) {
-    }
-
-    /**
-     * 奖励回到主线程执行: 优先走 MGactivity Java API, 否则回退控制台命令;
-     * 星光点对接 EssentialsX 经济(优先 EssentialsX 金钱, 不可用时回退 /money give 命令) —— 沿用我方 A6。
-     */
-    private void dispatch(String name, List<String> cmds, double starPoints,
-                          MGactivityApi mg, MgEffect effect) {
-        final String n = name;
-        final List<String> c = cmds;
-        final double sp = starPoints;
-        final MGactivityApi m = mg;
-        final MgEffect e = effect;
-        KBBSToperCore.scheduler().runSync(() -> {
-            if (m != null) {
-                if (e.growth()) {
-                    m.setGrowthMultiplier(n, e.growthMult());
-                }
-                if (e.exp()) {
-                    m.setExperienceMultiplier(n, e.expMult());
-                }
-                if (e.maxHp()) {
-                    m.setMaxHp(n, e.maxHpVal());
-                }
-            } else {
-                for (String cmd : c) {
-                    if (cmd != null && !cmd.isBlank()) {
-                        KBBSToperCore.platform().dispatchConsoleCommand(cmd);
-                    }
-                }
-            }
-            if (sp > 0) {
-                // 星光点对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令) —— 沿用我方 A6
-                DebugCommandHandler.trace("dispatch(" + n + "): 发放星光点 " + sp + " (EssentialsX → /money give 回退)");
-                KBBSToperCore.platform().depositEconomy(n, sp);
-            }
-        });
-    }
-
-    /**
-     * 跨天且上次领奖不是昨天 → 判定为断签, 派发连签中断。
+     * 跨天且上次领奖不是昨天 → 判定为断签, 按漏掉的天数扣减奖励等级。
      * 必须在重置 rewardbefore 之前调用。
      */
     public static void applyDailyStreakBreakIfNeeded(Poster poster) {
@@ -544,12 +384,14 @@ public class Reward {
         if (missedDays <= 0) {
             return;
         }
+        int decay = decayPerMissedDay();
+        if (decay <= 0) {
+            return;
+        }
         int oldLevel = clampLevel(poster.getRewardlevel());
-        int newLevel = Math.max(0, oldLevel - (int) Math.min(Integer.MAX_VALUE,
-                missedDays * DAILY_LEVEL_DECAY));
+        int newLevel = Math.max(0, oldLevel - (int) Math.min(Integer.MAX_VALUE, missedDays * decay));
         poster.setRewardlevel(newLevel);
-        poster.setMaxhp(Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
-                Option.REWARD_VAL_HP_BASE.getInt() + newLevel));
+        poster.setMaxhp(hpForLevel(newLevel));
         if (newLevel != oldLevel) {
             refreshRewardState(poster, false);
         }
@@ -568,14 +410,13 @@ public class Reward {
     }
 
     /**
-     * 主动把玩家的奖励数值状态同步给 MGactivity（生命上限绝对值）。
+     * 主动把玩家的奖励数值状态同步给 MGactivity（生命上限 + 倍率绝对值）。
      *
      * <p>用于"数据主动刷新"的三个时机：顶帖检测后 / 玩家上线时 / 管理员 debug 调整后。
-     * 优先走 Java API，未注册时回退 {@code reward.mgactivity:} 控制台命令模板。
-     * 若 {@code resetDailyMultipliers} 为 true（仅 debug clear 用），同时把当日成长/经验倍率归位 1.0。</p>
+     * 优先走 Java API，未注册时回退 {@code reward.mgactivity:} 控制台命令模板。</p>
      *
-     * @param poster                玩家绑定记录（读其 maxhp）
-     * @param resetDailyMultipliers 是否把每日倍率归位 1.0
+     * @param poster                玩家绑定记录(读其奖励等级)
+     * @param resetDailyMultipliers 是否把倍率归位 1.0(仅 debug clear 用, 等级已被清零时等效)
      */
     public static void refreshRewardState(Poster poster, boolean resetDailyMultipliers) {
         if (poster == null) {
@@ -585,9 +426,8 @@ public class Reward {
         if (name == null || name.isBlank()) {
             return;
         }
-        int level = clampLevel(poster.getRewardlevel());
-        int base = Option.REWARD_VAL_HP_BASE.getInt();
-        int maxhp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(), base + level);
+        int level = resetDailyMultipliers ? 0 : clampLevel(poster.getRewardlevel());
+        int maxhp = hpForLevel(level);
         double multiplier = multiplierForLevel(level);
 
         MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
@@ -601,13 +441,10 @@ public class Reward {
                 mg.setExperienceMultiplier(n, multiplier);
                 mg.setMaxHp(n, hp);
             } else {
-                String maxHpCmd = Option.REWARD_MG_MAXHP_CMD.getString()
-                        .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", String.valueOf(hp));
-                String growthCmd = Option.REWARD_MG_GROWTH_CMD.getString()
-                        .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", formatValue(multiplier));
-                String expCmd = Option.REWARD_MG_EXP_CMD.getString()
-                        .replaceAll("%PLAYER%", n).replaceAll("%VALUE%", formatValue(multiplier));
-                for (String cmd : List.of(maxHpCmd, growthCmd, expCmd)) {
+                for (String cmd : List.of(
+                        buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), n, hp),
+                        buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), n, multiplier),
+                        buildMgCommand(Option.REWARD_MG_EXP_CMD.getString(), n, multiplier))) {
                     if (cmd != null && !cmd.isBlank()) {
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);
                     }
@@ -620,5 +457,10 @@ public class Reward {
         Calendar c = Calendar.getInstance();
         c.add(Calendar.DAY_OF_MONTH, -1);
         return DAY_FORMAT.format(c.getTime());
+    }
+
+    /** 保留给旧配置校验用的日期格式判断(M-dd)。 */
+    static boolean isMonthDay(String s) {
+        return s != null && DATE_PATTERN.matcher(s).matches();
     }
 }

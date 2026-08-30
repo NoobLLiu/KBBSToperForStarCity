@@ -205,16 +205,16 @@ public class Crawler {
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 跨天, rewardtime 重置为 0");
         }
 
-        if (poster.getRewardtime() >= Reward.DAILY_REWARD_LIMIT) {
+        if (poster.getRewardtime() >= Option.REWARD_TIMES.getInt(3)) {
             // 超出每日上限: 仅记录顶贴, 不再发奖
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
-                    + poster.getRewardtime() + "/" + Reward.DAILY_REWARD_LIMIT + " 达上限 → 仅记录顶贴");
+                    + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " 达上限 → 仅记录顶贴");
             sql.addTopState(bbsname, time);
             return;
         }
 
         DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
-                + poster.getRewardtime() + "/" + Reward.DAILY_REWARD_LIMIT + " → 调用 applyCumulativeAward() 计算奖励");
+                + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " → 调用 applyCumulativeAward() 计算奖励");
         if (!new Reward(olplayer, this, index, poster).applyCumulativeAward()) {
             return;
         }

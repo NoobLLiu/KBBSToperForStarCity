@@ -79,7 +79,7 @@ public class DebugCommandHandler implements CommandHandler {
         }
     }
 
-    /** clear: 清空自身顶帖状态(重置已领次数/上次领奖日/HP上限, 并清除顶帖记录)。 */
+    /** clear: 清空自身顶帖状态(重置奖励等级/已领次数/上次领奖日/HP上限, 并清除顶帖记录)。 */
     private void clear(PlatformPlayer player, PlatformSender sender) {
         String uuid = player.getUniqueId().toString();
         Poster poster = SQLManager.getSQLer().getPoster(uuid);
@@ -89,11 +89,12 @@ public class DebugCommandHandler implements CommandHandler {
         }
         poster.setRewardbefore("");
         poster.setRewardtime(0);
-        poster.setMaxhp(Option.REWARD_VAL_HP_BASE.getInt());
+        poster.setRewardlevel(0);
+        poster.setMaxhp(Reward.hpBase());
         SQLManager.getSQLer().updatePoster(poster);
         SQLManager.getSQLer().clearTopStates(poster.getBbsname());
 
-        // 管理员调整后主动刷新: 向 MGactivity 同步生命上限并把当日成长/经验倍率归位 1.0
+        // 管理员调整后主动刷新: 向 MGactivity 同步生命上限并把成长/经验倍率归位 1.0
         Reward.refreshRewardState(poster, true);
 
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_CLEAR.getString());

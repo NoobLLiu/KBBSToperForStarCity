@@ -123,8 +123,8 @@ public abstract class SQLer {
                     int maxhp = rs.getInt("maxhp");
                     poster.setMaxhp(maxhp);
                     int level = rs.getInt("rewardlevel");
-                    poster.setRewardlevel(Math.min(Reward.MAX_REWARD_LEVEL, level > 0 ? level
-                            : Math.max(0, maxhp - Option.REWARD_VAL_HP_BASE.getInt())));
+                    poster.setRewardlevel(Reward.clampLevel(level > 0 ? level
+                            : Math.max(0, maxhp - Reward.hpBase())));
                 }
             }
         } catch (Exception e) {
@@ -268,8 +268,8 @@ public abstract class SQLer {
                 int maxhp = rs.getInt("maxhp");
                 poster.setMaxhp(maxhp);
                 int level = rs.getInt("rewardlevel");
-                poster.setRewardlevel(Math.min(Reward.MAX_REWARD_LEVEL, level > 0 ? level
-                        : Math.max(0, maxhp - Option.REWARD_VAL_HP_BASE.getInt())));
+                poster.setRewardlevel(Reward.clampLevel(level > 0 ? level
+                        : Math.max(0, maxhp - Reward.hpBase())));
                 poster.setCount(0);
                 posterlist.add(poster);
             }

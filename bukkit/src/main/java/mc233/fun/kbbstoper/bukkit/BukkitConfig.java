@@ -7,6 +7,10 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.List;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Set;
+
 /** YamlConfiguration 适配。 */
 public class BukkitConfig implements PlatformConfig {
 
@@ -69,5 +73,25 @@ public class BukkitConfig implements PlatformConfig {
     @Override
     public boolean contains(String path) {
         return handle.contains(path);
+    }
+
+    @Override
+    public Set<String> getKeys(boolean deep) {
+        return handle.getKeys(deep);
+    }
+
+    @Override
+    public Object getRaw(String path) {
+        return handle.get(path);
+    }
+
+    @Override
+    public void set(String path, Object value) {
+        handle.set(path, value);
+    }
+
+    @Override
+    public void save(File file) throws IOException {
+        handle.save(file);
     }
 }

@@ -69,51 +69,18 @@ public class Util {
     }
 
     /**
-     * 计算当前时刻顶帖能拿到的额外奖励文本。
+     * 计算当前时刻顶帖能拿到的额外收益提示文本。
      *
-     * @return 没有额外奖励时返回 null
+     * <p>等级制下唯一的"额外"就是高峰期：等级提升更多(gain-peak)且额外发放星光点。</p>
+     *
+     * @return 当前不在高峰期时返回 null
      */
     public static String getExtraReward(Crawler crawler) {
-        boolean incentive = false;
-        boolean offday = false;
-
-        Calendar current = Calendar.getInstance();
-
-        // 上一次顶帖时间，默认 1970-01-01
-        Calendar lastpost = Calendar.getInstance();
-        lastpost.setTime(new Date(0));
-
-        if (!crawler.Time.isEmpty()) {
-            String firstTime = crawler.Time.get(0);
-            if (firstTime != null && !firstTime.isBlank()) {
-                try {
-                    lastpost.setTime(new SimpleDateFormat("yyyy-M-d HH:mm").parse(firstTime));
-                } catch (ParseException e) {
-                    KBBSToperCore.logger().warning("无法解析顶帖时间: \"" + firstTime + "\"");
-                }
-            }
+        if (!Reward.isPeakNow()) {
+            return null;
         }
-
-        if (Reward.canIncentiveReward(current, lastpost)) {
-            incentive = true;
-        }
-        if (Reward.canOffDayReward(current)) {
-            offday = true;
-        }
-
-        String extra = null;
-        if (incentive) {
-            // 两项都不是"额外奖励"且同时命中时，只算休息日奖励
-            if (!(offday
-                    && !Option.REWARD_INCENTIVEREWARD_EXTRA.getBoolean()
-                    && !Option.REWARD_OFFDAYREWARD_EXTRA.getBoolean())) {
-                extra = Message.GUI_INCENTIVEREWARDS.getString();
-            }
-        }
-        if (offday) {
-            String offText = Message.GUI_OFFDAYREWARDS.getString();
-            extra = (extra == null) ? offText : (extra + "+" + offText);
-        }
-        return extra;
+        return Message.GUI_PEAKREWARDS.getString("高峰期奖励")
+                .replace("%GAIN%", String.valueOf(Reward.gainPeak()))
+                .replace("%STAR%", String.valueOf((long) Option.REWARD_VAL_STAR.getDouble()));
     }
 }

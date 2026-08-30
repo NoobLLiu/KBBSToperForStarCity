@@ -8,7 +8,12 @@ import mc233.fun.kbbstoper.core.platform.PlatformSender;
 import java.util.Arrays;
 import java.util.List;
 
-/** /bt testreward [normal|incentive|offday]，直接跑奖励命令用于验证配置。 */
+/**
+ * /bt testreward [normal|peak|max]，直接模拟一次奖励效果用于验证配置。
+ *
+ * <p>normal = 平峰期顶帖(+gain-normal 级)；peak = 高峰期顶帖(+gain-peak 级, 含星光点)；
+ * max = 满级效果预览。旧参数 incentive/offday 作为别名保留兼容(GUI 仍在用)。</p>
+ */
 public class TestRewardCommandHandler implements CommandHandler {
 
     @Override
@@ -25,7 +30,13 @@ public class TestRewardCommandHandler implements CommandHandler {
         String type = "NORMAL";
         if (args.length == 2) {
             String t = args[1].toUpperCase();
-            if (t.equals("INCENTIVE") || t.equals("OFFDAY") || t.equals("NORMAL")) {
+            // incentive/offday 为等级制之前的旧参数名, 映射到 高峰/满级
+            if (t.equals("INCENTIVE")) {
+                t = "PEAK";
+            } else if (t.equals("OFFDAY")) {
+                t = "MAX";
+            }
+            if (t.equals("NORMAL") || t.equals("PEAK") || t.equals("MAX")) {
                 type = t;
             } else {
                 sender.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
@@ -40,7 +51,7 @@ public class TestRewardCommandHandler implements CommandHandler {
     @Override
     public List<String> tabComplete(PlatformSender sender, String[] args) {
         if (args.length == 2) {
-            return Arrays.asList("normal", "incentive", "offday");
+            return Arrays.asList("normal", "peak", "max");
         }
         return null;
     }
