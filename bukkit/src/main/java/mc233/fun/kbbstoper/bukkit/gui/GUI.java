@@ -1,7 +1,6 @@
 package mc233.fun.kbbstoper.bukkit.gui;
 
 import mc233.fun.kbbstoper.bukkit.BukkitPlayer;
-import mc233.fun.kbbstoper.bukkit.BukkitSender;
 import mc233.fun.kbbstoper.core.GuiAction;
 import mc233.fun.kbbstoper.core.GuiDataResolver;
 import mc233.fun.kbbstoper.core.KBBSToperCore;
@@ -367,44 +366,6 @@ public final class GUI {
     }
 
     // ---------------------------------------------------------------
-    // 铁砧输入入口（绑定 / 检查 / 删除）
-    // ---------------------------------------------------------------
-
-    public static void openBindingAnvil(Player player) {
-        AnvilInput.open(player, Message.GUI2_ANVIL_TITLE.getString(),
-                Message.GUI2_ANVIL_GUIDE.getString(),
-                id -> {
-                    // 走与命令完全相同的路径：二次确认 / 冷却 / 重复检查全部生效
-                    KBBSToperCore.cli().handleDirect(BukkitSender.of(player), new String[]{"binding", id});
-                    // 缓存里还留着待确认的 ID，说明是第一次提交，重新弹铁砧完成二次确认
-                    if (KBBSToperCore.cli().getCache().containsKey(player.getUniqueId().toString())) {
-                        KBBSToperCore.scheduler().runLater(() -> {
-                            if (player.isOnline()) {
-                                openBindingAnvilConfirm(player);
-                            }
-                        }, 2);
-                    }
-                });
-    }
-
-    private static void openBindingAnvilConfirm(Player player) {
-        AnvilInput.open(player, Message.GUI2_ANVIL_TITLE.getString(),
-                Message.GUI2_ANVIL_GUIDE.getString() + "\n" + Message.GUI2_ANVIL_CONFIRM.getString(),
-                id -> KBBSToperCore.cli().handleDirect(BukkitSender.of(player), new String[]{"binding", id}));
-    }
-
-    public static void openCheckAnvil(Player player) {
-        AnvilInput.open(player, Message.GUI2_MANAGE_CHECK.getString(),
-                Message.GUI2_ANVIL_GUIDE.getString(),
-                id -> KBBSToperCore.cli().handleDirect(BukkitSender.of(player), new String[]{"check", "bbsid", id}));
-    }
-
-    public static void openDeleteAnvil(Player player) {
-        AnvilInput.open(player, Message.GUI2_MANAGE_DELETE.getString(),
-                Message.GUI2_ANVIL_GUIDE_PLAYER.getString(),
-                id -> KBBSToperCore.cli().handleDirect(BukkitSender.of(player), new String[]{"delete", id}));
-    }
-
     // ---------------------------------------------------------------
     // 工具方法
     // ---------------------------------------------------------------

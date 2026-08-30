@@ -2,6 +2,8 @@ package mc233.fun.kbbstoper.bukkit;
 
 import mc233.fun.kbbstoper.bukkit.gui.BedrockForm;
 import mc233.fun.kbbstoper.bukkit.gui.GUI;
+import mc233.fun.kbbstoper.bukkit.gui.GUIManager;
+import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import org.bukkit.entity.Player;
 
@@ -33,8 +35,8 @@ public class BukkitPlayer extends BukkitSender implements PlatformPlayer {
 
     @Override
     public void openBindingInput() {
-        // Bukkit 端 v2 改用铁砧界面输入论坛ID
-        GUI.openBindingAnvil(player());
+        // Java 版已废弃铁砧输入, 改为在聊天栏提示用指令绑定
+        GUIManager.promptCommand(player(), Message.GUI2_BINDING_HINT, "/bt binding ");
     }
 
     @Override

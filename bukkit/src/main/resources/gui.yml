@@ -50,8 +50,8 @@ gui:
       type: 'NAME_TAG'
       displayName: '&a绑定论坛ID'
       lore:
-        - '&7在铁砧界面输入论坛ID'
-        - '&7(字母/数字/中文, 需二次确认)'
+        - '&7点击后将在聊天栏给出绑定指令'
+        - '&7(字母/数字/中文, 需输入两次确认)'
       action: 'BINDING'
       bound-type: 'NAME_TAG'
       bound-displayName: '&e更换论坛ID'

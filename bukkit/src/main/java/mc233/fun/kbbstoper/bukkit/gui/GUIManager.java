@@ -15,8 +15,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.InventoryHolder;
 
@@ -34,10 +32,6 @@ public class GUIManager implements Listener {
         Player p = (Player) ev.getWhoClicked();
         InventoryHolder holder = p.getOpenInventory().getTopInventory().getHolder();
 
-        if (holder instanceof AnvilInput) {
-            handleAnvilClick(ev, p, (AnvilInput) holder);
-            return;
-        }
         if (!(holder instanceof GUI.Holder)) {
             return;
         }
@@ -62,7 +56,7 @@ public class GUIManager implements Listener {
                 break;
             case BINDING:
                 p.closeInventory();
-                GUI.openBindingAnvil(p);
+                promptCommand(p, Message.GUI2_BINDING_HINT, "/bt binding ");
                 break;
             case REWARD:
                 p.closeInventory();
@@ -107,11 +101,11 @@ public class GUIManager implements Listener {
                 break;
             case CHECK:
                 p.closeInventory();
-                GUI.openCheckAnvil(p);
+                promptCommand(p, Message.GUI2_CHECK_HINT, "/bt check bbsid ");
                 break;
             case DELETE:
                 p.closeInventory();
-                GUI.openDeleteAnvil(p);
+                promptCommand(p, Message.GUI2_DELETE_HINT, "/bt delete ");
                 break;
             case RELOAD:
                 p.closeInventory();
@@ -156,45 +150,6 @@ public class GUIManager implements Listener {
     }
 
     // ---------------------------------------------------------------
-    // 铁砧输入
-    // ---------------------------------------------------------------
-
-    private void handleAnvilClick(InventoryClickEvent ev, Player p, AnvilInput anvil) {
-        int raw = ev.getRawSlot();
-        if (raw == 2) {
-            ev.setCancelled(true);
-            // 优先用 PrepareAnvilEvent 解析并缓存的改名文本(最可靠); 拿不到再退回结果物品名
-            String text = anvil.getEntered();
-            if ((text == null || text.isBlank()) && ev.getCurrentItem() != null
-                    && ev.getCurrentItem().getType() != org.bukkit.Material.AIR
-                    && ev.getCurrentItem().hasItemMeta()
-                    && ev.getCurrentItem().getItemMeta().hasDisplayName()) {
-                text = ev.getCurrentItem().getItemMeta().getDisplayName();
-            }
-            if (text != null && !text.isBlank()) {
-                final String t = text.trim();
-                // 延迟到下一 tick 执行 confirm：避免在点击处理过程中关闭/重开库存，
-                // 导致客户端误以为输入界面被重新打开（"假重开"），点输出槽没反应。
-                Bukkit.getScheduler().runTask(
-                        mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(),
-                        () -> {
-                            if (p.isOnline()
-                                    && p.getOpenInventory().getTopInventory().getHolder() == anvil) {
-                                anvil.confirm(p, t);
-                            }
-                        });
-            }
-            return;
-        }
-        // 改名槽 / 输入槽允许放取物品，保证改名栏可用；空掉时补回占位物品
-        ev.setCancelled(false);
-        if (raw == 0 || raw == 1) {
-            Bukkit.getScheduler().runTask(
-                    mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(), anvil::ensureGuide);
-        }
-    }
-
-    // ---------------------------------------------------------------
     // 宣传帖
     // ---------------------------------------------------------------
 
@@ -213,30 +168,21 @@ public class GUIManager implements Listener {
         p.spigot().sendMessage(msg);
     }
 
-    /**
-     * 铁砧准备结果：把改名费用清零并给出结果物品。
-     * 不清零的话玩家经验不足时客户端结果槽为空，点了没反应、无法提交。
-     */
-    @EventHandler
-    public void onPrepareAnvil(PrepareAnvilEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (holder instanceof AnvilInput) {
-            ((AnvilInput) holder).onPrepare(event);
-        }
-    }
-
-    /** 铁砧关闭时还原临时补齐的经验，保证输入过程不消耗玩家经验。 */
-    @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (holder instanceof AnvilInput) {
-            ((AnvilInput) holder).restoreXp();
-            ((AnvilInput) holder).cleanupLeaked();
-        }
-    }
-
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         MenuRouter.clear(event.getPlayer().getUniqueId());
+    }
+
+    /**
+     * 废弃 Java 铁砧输入后, 点击绑定/检查/删除按钮改为在聊天栏提示玩家用指令完成。
+     * 发送一行说明 + 一个可点击按钮(SUGGEST_COMMAND 把指令填入聊天框, 玩家补全参数后回车)。
+     */
+    public static void promptCommand(Player p, Message hint, String suggest) {
+        p.sendMessage(Message.PREFIX.getString() + hint.getString());
+        TextComponent c = new TextComponent("\u25b6 \u00a7a\u70b9\u51fb\u586b\u5165\u6307\u4ee4 \u00a77\u25c0");
+        c.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                new ComponentBuilder("\u00a77\u70b9\u51fb\u628b\u6307\u4ee4\u586b\u5165\u804a\u5929\u6846").create()));
+        c.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, suggest));
+        p.spigot().sendMessage(c);
     }
 }
