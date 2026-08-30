@@ -92,6 +92,7 @@ public enum Message {
     FORM_BINDING_INPUT("form.binding.input"),
     FORM_BINDING_PLACEHOLDER("form.binding.placeholder"),
     FORM_BINDING_EMPTY("form.binding.empty"),
+    FORM_BINDING_CONFIRM_LABEL("form.binding.confirm-label"),
     FORM_POST_TITLE("form.post.title"),
     FORM_POST_CONTENT("form.post.content"),
     // ---- 双端新 GUI（v2 最终稿）共用文案 ----

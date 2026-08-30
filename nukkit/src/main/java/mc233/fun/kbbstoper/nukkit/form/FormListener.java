@@ -123,10 +123,10 @@ public class FormListener implements Listener {
         // 走与命令完全相同的路径，因此二次确认、冷却、重复绑定检查全部生效。
         cli.onCommand(NukkitSender.of(player), new String[]{"binding", id});
 
-        // 提交后重新弹一次输入框，方便玩家完成二次确认
+        // 提交后重新弹一次输入框，方便玩家完成二次确认（第二次明确提示"再输入一遍用户名称确认"）
         KBBSToperCore.scheduler().runLater(() -> {
             if (player.isOnline() && needConfirm(player)) {
-                FormRouter.openBindingForm(player);
+                FormRouter.openBindingConfirmForm(player);
             }
         }, 20);
     }

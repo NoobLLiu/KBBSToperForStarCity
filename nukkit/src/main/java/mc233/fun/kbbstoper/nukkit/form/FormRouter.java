@@ -197,6 +197,23 @@ public final class FormRouter {
         });
     }
 
+    /** 打开绑定二次确认输入表单，提示玩家再输入一遍用户名称。 */
+    public static void openBindingConfirmForm(Player player) {
+        KBBSToperCore.scheduler().runSync(() -> {
+            FormWindowCustom form = new FormWindowCustom(
+                    strip(Message.FORM_BINDING_TITLE.getString("绑定论坛ID")));
+            form.addElement(new ElementLabel(
+                    strip(Message.FORM_BINDING_CONFIRM_LABEL.getString("再输入一遍用户名称确认"))));
+            form.addElement(new ElementInput(
+                    strip(Message.FORM_BINDING_INPUT.getString("论坛ID")),
+                    strip(Message.FORM_BINDING_PLACEHOLDER.getString("在此输入")),
+                    ""));
+
+            int id = player.showFormWindow(form);
+            PENDING.put(key(player.getUniqueId(), id), PendingForm.binding());
+        });
+    }
+
     // ---------------------------------------------------------------
     // 我的状态 / 规则 / 宣传帖（只读表单）
     // ---------------------------------------------------------------

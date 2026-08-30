@@ -18,7 +18,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.InventoryHolder;
 
 /**
@@ -164,11 +163,8 @@ public class GUIManager implements Listener {
         int raw = ev.getRawSlot();
         if (raw == 2) {
             ev.setCancelled(true);
-            // 优先取 AnvilInventory 的改名文本(最可靠), 拿不到再退回结果物品名
-            String text = null;
-            if (ev.getInventory() instanceof AnvilInventory) {
-                text = ((AnvilInventory) ev.getInventory()).getRenameText();
-            }
+            // 优先用 PrepareAnvilEvent 解析并缓存的改名文本(最可靠); 拿不到再退回结果物品名
+            String text = anvil.getEntered();
             if ((text == null || text.isBlank()) && ev.getCurrentItem() != null
                     && ev.getCurrentItem().getType() != org.bukkit.Material.AIR
                     && ev.getCurrentItem().hasItemMeta()
@@ -176,7 +172,17 @@ public class GUIManager implements Listener {
                 text = ev.getCurrentItem().getItemMeta().getDisplayName();
             }
             if (text != null && !text.isBlank()) {
-                anvil.confirm(p, text);
+                final String t = text.trim();
+                // 延迟到下一 tick 执行 confirm：避免在点击处理过程中关闭/重开库存，
+                // 导致客户端误以为输入界面被重新打开（"假重开"），点输出槽没反应。
+                Bukkit.getScheduler().runTask(
+                        mc233.fun.kbbstoper.bukkit.KBBSToperBukkit.getInstance(),
+                        () -> {
+                            if (p.isOnline()
+                                    && p.getOpenInventory().getTopInventory().getHolder() == anvil) {
+                                anvil.confirm(p, t);
+                            }
+                        });
             }
             return;
         }

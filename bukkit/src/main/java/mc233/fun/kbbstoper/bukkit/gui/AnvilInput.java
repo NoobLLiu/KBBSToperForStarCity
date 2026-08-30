@@ -40,13 +40,17 @@ public final class AnvilInput implements InventoryHolder {
     /** 论坛ID / 玩家名白名单：字母、数字、下划线、中文，长度 1-32。 */
     public static final Pattern VALID_INPUT = Pattern.compile("^[A-Za-z0-9_\\u4e00-\\u9fa5]{1,32}$");
 
-    /** 改名槽占位物品的名字（一个空格），玩家输入后会被替换掉。 */
-    private static final String PLACEHOLDER_NAME = " ";
+    /** 改名槽占位物品的显示名（提示玩家输入论坛用户名），玩家改名后会被替换掉。 */
+    private static final String PLACEHOLDER_NAME = "输入论坛用户名";
 
     private final Inventory inv;
     private final String guide;
     private final Consumer<String> onConfirm;
     private boolean confirmed;
+
+    /** 最近一次 PrepareAnvilEvent 解析出的改名文本。点击输出槽时优先用它，
+     *  避免某些 Paper 版本在点击瞬间 getRenameText() 返回空导致无法提交、界面像被重新打开。 */
+    private String entered;
 
     private Player player;
     private int origLevel;
@@ -103,7 +107,13 @@ public final class AnvilInput implements InventoryHolder {
         inv.setRepairCostAmount(0);
 
         String text = inv.getRenameText();
+        this.entered = text;
         event.setResult((text == null || text.isBlank()) ? null : namedItem(text));
+    }
+
+    /** 最近一次解析出的改名文本（点击输出槽时回退使用）。 */
+    String getEntered() {
+        return entered;
     }
 
     /** 玩家点击输出槽时调用。 */
@@ -113,7 +123,8 @@ public final class AnvilInput implements InventoryHolder {
         }
         confirmed = true;
         String input = text == null ? "" : text.trim();
-        if (!VALID_INPUT.matcher(input).matches()) {
+        // 占位提示("输入论坛用户名")本身也是合法中文, 必须显式排除, 否则玩家不修改直接点确认会被当成有效论坛ID
+        if (input.isEmpty() || input.equals(PLACEHOLDER_NAME) || !VALID_INPUT.matcher(input).matches()) {
             confirmed = false;
             player.sendMessage(Message.PREFIX.getString() + Message.GUI2_ANVIL_INVALID.getString());
             reopen(player);
