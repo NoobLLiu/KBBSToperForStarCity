@@ -3,6 +3,7 @@ package mc233.fun.kbbstoper.core.sql;
 import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.Reward;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -27,7 +28,7 @@ public abstract class SQLer {
     public void addPoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`, `maxhp`) VALUES (?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`, `maxhp`, `rewardlevel`) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getUuid());
@@ -37,6 +38,7 @@ public abstract class SQLer {
             pstmt.setString(5, poster.getRewardbefore());
             pstmt.setInt(6, poster.getRewardtime());
             pstmt.setInt(7, poster.getMaxhp());
+            pstmt.setInt(8, poster.getRewardlevel());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("写入绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -48,7 +50,7 @@ public abstract class SQLer {
     public void updatePoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=?, `maxhp`=? WHERE `uuid`=?;",
+                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=?, `maxhp`=?, `rewardlevel`=? WHERE `uuid`=?;",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getName());
@@ -57,7 +59,8 @@ public abstract class SQLer {
             pstmt.setString(4, poster.getRewardbefore());
             pstmt.setInt(5, poster.getRewardtime());
             pstmt.setInt(6, poster.getMaxhp());
-            pstmt.setString(7, poster.getUuid());
+            pstmt.setInt(7, poster.getRewardlevel());
+            pstmt.setString(8, poster.getUuid());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("更新绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -117,7 +120,11 @@ public abstract class SQLer {
                     poster.setBinddate(rs.getLong("binddate"));
                     poster.setRewardbefore(rs.getString("rewardbefore"));
                     poster.setRewardtime(rs.getInt("rewardtimes"));
-                    poster.setMaxhp(rs.getInt("maxhp"));
+                    int maxhp = rs.getInt("maxhp");
+                    poster.setMaxhp(maxhp);
+                    int level = rs.getInt("rewardlevel");
+                    poster.setRewardlevel(Math.min(Reward.MAX_REWARD_LEVEL, level > 0 ? level
+                            : Math.max(0, maxhp - Option.REWARD_VAL_HP_BASE.getInt())));
                 }
             }
         } catch (Exception e) {
@@ -258,6 +265,11 @@ public abstract class SQLer {
                 poster.setBinddate(rs.getLong("binddate"));
                 poster.setRewardbefore(rs.getString("rewardbefore"));
                 poster.setRewardtime(rs.getInt("rewardtimes"));
+                int maxhp = rs.getInt("maxhp");
+                poster.setMaxhp(maxhp);
+                int level = rs.getInt("rewardlevel");
+                poster.setRewardlevel(Math.min(Reward.MAX_REWARD_LEVEL, level > 0 ? level
+                        : Math.max(0, maxhp - Option.REWARD_VAL_HP_BASE.getInt())));
                 poster.setCount(0);
                 posterlist.add(poster);
             }

@@ -18,6 +18,8 @@ public class Poster {
     private int count = 0;
     /** 当前生命值上限。未顶过帖的玩家初始(最低)为 20，随顶帖累加，由 MGactivity 钳制持久化。 */
     private int maxhp = 20;
+    /** 累计奖励等级(对方 287fc94 等级制奖励引擎使用)。0~MAX_REWARD_LEVEL。 */
+    private int rewardlevel = 0;
 
     public static void setSQLer(SQLer sql) {
         Poster.sql = sql;
@@ -85,6 +87,14 @@ public class Poster {
 
     public void setMaxhp(int maxhp) {
         this.maxhp = maxhp;
+    }
+
+    public int getRewardlevel() {
+        return rewardlevel;
+    }
+
+    public void setRewardlevel(int rewardlevel) {
+        this.rewardlevel = rewardlevel;
     }
 
     public List<String> getTopStates() {

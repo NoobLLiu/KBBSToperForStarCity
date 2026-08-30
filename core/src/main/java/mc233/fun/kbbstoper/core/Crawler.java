@@ -201,20 +201,23 @@ public class Crawler {
             Reward.applyDailyStreakBreakIfNeeded(poster);
             poster.setRewardbefore(datenow);
             poster.setRewardtime(0);
+            sql.updatePoster(poster);
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 跨天, rewardtime 重置为 0");
         }
 
-        if (poster.getRewardtime() >= Option.REWARD_TIMES.getInt()) {
+        if (poster.getRewardtime() >= Reward.DAILY_REWARD_LIMIT) {
             // 超出每日上限: 仅记录顶贴, 不再发奖
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
-                    + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt() + " 达上限 → 仅记录顶贴");
+                    + poster.getRewardtime() + "/" + Reward.DAILY_REWARD_LIMIT + " 达上限 → 仅记录顶贴");
             sql.addTopState(bbsname, time);
             return;
         }
 
         DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
-                + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt() + " → 调用 award() 计算奖励");
-        new Reward(olplayer, this, index, poster).award();
+                + poster.getRewardtime() + "/" + Reward.DAILY_REWARD_LIMIT + " → 调用 applyCumulativeAward() 计算奖励");
+        if (!new Reward(olplayer, this, index, poster).applyCumulativeAward()) {
+            return;
+        }
         sql.addTopState(bbsname, time);
         poster.setRewardtime(poster.getRewardtime() + 1);
         sql.updatePoster(poster);
