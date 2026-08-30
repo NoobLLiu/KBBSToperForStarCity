@@ -71,7 +71,6 @@
    建议 `/actistatus` 至少展示这些由 KBBSToper 下发/影响的字段：
    - 成长值（数值，命令 `addgrowthpoints` 累加）
    - 成长倍率（`setGrowthMultiplier` API，或回退命令 `setgrowthmultiplier`）
-   - 经验倍率（`setExperienceMultiplier` API，或回退命令 `setexperiencemultiplier`）
    - 生命上限（`setMaxHp` API，或回退命令 `setmaxhp`）
    - 连签中断（`addStreakBreak` API，或回退命令 `addstreakbreak`）
 
@@ -100,4 +99,7 @@
 - **星光点不经过 MGactivity**：KBBSToper A3 起星光点直连 EssentialsX 经济（`money give` 回退），
   不再调用你们的 `addStarlightPoints`。该方法可保留，但 KBBSToper 不会再用。
 - **成长值"倍率"的 Java API 仍在正常使用**：KBBSToper **只废弃了"增加成长值(数值)"的 API**，
-  `setGrowthMultiplier` / `setExperienceMultiplier` 两个倍率 API 依然是首顶/额外顶贴的主通道（KBBSToper 优先走 API）。请勿移除。
+  `setGrowthMultiplier` 倍率 API 依然是顶贴奖励的主通道（KBBSToper 优先走 API）。
+  **A16 起"经验倍率"奖励已整体移除**：`setExperienceMultiplier` / `getExperienceMultiplier` 已从
+  KBBSToper 发布的接口中删除，KBBSToper 不再调用（也不下发 `setexperiencemultiplier` 命令）。
+  你们的实现里对应方法可保留（多余方法不影响运行），后续可自行清理。

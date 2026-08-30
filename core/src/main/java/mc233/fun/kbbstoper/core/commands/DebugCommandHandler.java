@@ -94,7 +94,7 @@ public class DebugCommandHandler implements CommandHandler {
         SQLManager.getSQLer().updatePoster(poster);
         SQLManager.getSQLer().clearTopStates(poster.getBbsname());
 
-        // 管理员调整后主动刷新: 向 MGactivity 同步生命上限并把成长/经验倍率归位 1.0
+        // 管理员调整后主动刷新: 向 MGactivity 同步生命上限并把成长倍率归位 1.0
         Reward.refreshRewardState(poster, true);
 
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_CLEAR.getString());

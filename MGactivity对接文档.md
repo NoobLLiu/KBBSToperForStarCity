@@ -25,7 +25,6 @@ KBBSToper 在**每次玩家有效顶贴触发奖励**时，通过服务端控制
 | 命令模板（config 默认值） | 含义 | 下发时机 | 示例 |
 | --- | --- | --- | --- |
 | `mgactivity setgrowthmultiplier %PLAYER% %VALUE%` | 设置成长倍率 | **首顶**奖励 | `mgactivity setgrowthmultiplier Steve 1.25` |
-| `mgactivity setexperiencemultiplier %PLAYER% %VALUE%` | 设置经验倍率 | **额外**奖励 | `mgactivity setexperiencemultiplier Steve 1.25` |
 | `mgactivity setmaxhp %PLAYER% %VALUE%` | 设置生命值上限（HP 上限） | 首顶 / 附加（累加） | `mgactivity setmaxhp Steve 34` |
 | `mgactivity addstreakbreak %PLAYER% %VALUE%` | 增加连签中断值 | 玩家**当日未有效顶贴**、次日补扣 | `mgactivity addstreakbreak Steve 2` |
 
@@ -35,10 +34,10 @@ KBBSToper 在**每次玩家有效顶贴触发奖励**时，通过服务端控制
 
 ## 三、期望的语义约定（MGactivity 需保证）
 
-### 1. 倍率（growth / experience multiplier）
+### 1. 倍率（growth multiplier）
 - **不叠加，取最大值**：同一天多次顶贴，KBBSToper 每次都下发相同目标值（如 `1.25`）；MGactivity 应 `max(当前倍率, 新值)`，不得相乘或累加。
 - **每日自动清零**：倍率应在服务器每日重置为基准值（通常为 `1.0`）。KBBSToper 只发 `set`，**不发 reset**，因此每日清零由 MGactivity 负责。
-- 倍率应实时作用于玩家的成长 / 经验获取。
+- 倍率应实时作用于玩家的成长值获取。
 
 ### 2. 生命值上限（maxhp）
 - KBBSToper 下发的是**已累加并钳制后的绝对值**（整数，范围 `[30, 50]`）。
@@ -61,8 +60,6 @@ KBBSToper 当前未调用，但建议 MGactivity 一并暴露，方便排查与�
 | --- | --- |
 | `mgactivity getgrowthmultiplier %PLAYER%` | 查询当前成长倍率 |
 | `mgactivity resetgrowthmultiplier %PLAYER%` | 重置成长倍率为基准 |
-| `mgactivity getexperiencemultiplier %PLAYER%` | 查询当前经验倍率 |
-| `mgactivity resetexperiencemultiplier %PLAYER%` | 重置经验倍率为基准 |
 | `mgactivity getmaxhp %PLAYER%` | 查询当前 HP 上限 |
 
 ---
@@ -81,7 +78,7 @@ KBBSToper 的需求中，每次有效顶贴还应发放 **「成长值 +100」**
 ## 六、联调 checklist（MGactivity 开发者自测）
 
 - [ ] 上述 4 条必需命令已注册，且**控制台可直接执行**（无需 op 权限）
-- [ ] `setgrowthmultiplier` / `setexperiencemultiplier` 为「取最大值」语义，且次日自动归 `1.0`
+- [ ] `setgrowthmultiplier` 为「取最大值」语义，且次日自动归 `1.0`
 - [ ] `setmaxhp` 为绝对值写入，跨天保留，范围钳制 `[30, 50]`
 - [ ] `addstreakbreak` 为增量写入，立即生效
 - [ ] 玩家名（含中文/特殊字符）作为参数可正确解析
@@ -95,7 +92,6 @@ KBBSToper 的需求中，每次有效顶贴还应发放 **「成长值 +100」**
 reward:
     values:
         growth-multiplier: 1.25
-        experience-multiplier: 1.25
         hp-step: 2
         hp-base: 30
         hp-hard-cap: 50
@@ -106,7 +102,6 @@ reward:
         streak-break-daily: 2
     mgactivity:
         growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
-        experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
     growth-grant-commands: []        # 填入 addgrowth 命令后启用成长值 +100

@@ -32,7 +32,7 @@ package mc233.fun.kbbstoper.core.platform;
  *
  * <h2>语义约定（务必遵守）</h2>
  * <ul>
- *   <li>倍率（growth / experience）：<b>不叠加，取最大值</b>；每日由 MGactivity 自动归位基准值（通常 1.0）。</li>
+ *   <li>倍率（growth）：<b>不叠加，取最大值</b>；每日由 MGactivity 自动归位基准值（通常 1.0）。</li>
  *   <li>maxhp：KBBSToper 下发的是<b>已累加并钳制后的绝对值</b>（整数，约定范围 [20, 50]，下限 hp-base、上限 hp-hard-cap 均由 KBBSToper 配置驱动）。
  *       MGactivity 必须<b>把该值真正应用到玩家游戏内属性</b>（即设置 Minecraft 的 generic.max_health），并持久化、跨天保留、不要每日清零。
  *       下限钳制请与 KBBSToper 的 hp-base（默认 20）保持一致，避免被 MGactivity 抬到 30 导致下限不一致。</li>
@@ -54,14 +54,6 @@ public interface MGactivityApi {
      * @param value  倍率，建议范围 [1.0, 5.0]
      */
     void setGrowthMultiplier(String player, double value);
-
-    /**
-     * 设置玩家经验值倍率（取最大值，不叠加）。
-     *
-     * @param player 玩家名
-     * @param value  倍率，建议范围 [1.0, 5.0]
-     */
-    void setExperienceMultiplier(String player, double value);
 
     /**
      * 设置玩家生命值上限（绝对值写入，跨天保留）。
@@ -113,11 +105,6 @@ public interface MGactivityApi {
 
     /** @return 当前成长倍率；未实现返回 -1 */
     default double getGrowthMultiplier(String player) {
-        return -1;
-    }
-
-    /** @return 当前经验倍率；未实现返回 -1 */
-    default double getExperienceMultiplier(String player) {
         return -1;
     }
 

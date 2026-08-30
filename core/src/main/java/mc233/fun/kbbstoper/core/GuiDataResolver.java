@@ -117,12 +117,11 @@ public final class GuiDataResolver {
             curHp = poster.getMaxhp();
         }
         String curGm = multStr(mg == null ? -1 : mg.getGrowthMultiplier(name));
-        String curEm = multStr(mg == null ? -1 : mg.getExperienceMultiplier(name));
         String curGrowth = valStr(mg == null ? -1 : mg.getGrowthValue(name));
         String curStar = starStr(mg == null ? -1 : mg.getStarlightPoints(name));
 
         StatusCtx ctx = new StatusCtx(claimed, limit, level, maxLevel, nextGain, nextLevel,
-                curHp, curGm, curEm, curGrowth, curStar);
+                curHp, curGm, curGrowth, curStar);
 
         out.add(resolve(player, Message.GUI2_STATUS_BBSID.getString()));
         out.add(resolve(player, Message.GUI2_STATUS_POSTTIMES.getString()));
@@ -131,7 +130,6 @@ public final class GuiDataResolver {
         out.add(statusReplace(Message.GUI2_STATUS_NEXT.getString(), ctx));
         out.add(statusReplace(Message.GUI2_STATUS_CURHP.getString(), ctx));
         out.add(statusReplace(Message.GUI2_STATUS_CURGM.getString(), ctx));
-        out.add(statusReplace(Message.GUI2_STATUS_CUREM.getString(), ctx));
         out.add(statusReplace(Message.GUI2_STATUS_CURGROWTH.getString(), ctx));
         out.add(statusReplace(Message.GUI2_STATUS_CURSTAR.getString(), ctx));
         out.add(resolve(player, Message.GUI2_STATUS_REWARDBEFORE.getString()));
@@ -141,7 +139,7 @@ public final class GuiDataResolver {
     /** 状态页实时数值集合。 */
     private record StatusCtx(int claimed, int limit, int level, int maxLevel,
                              int nextGain, int nextLevel, int curHp,
-                             String curGm, String curEm, String curGrowth, String curStar) {
+                             String curGm, String curGrowth, String curStar) {
     }
 
     /** 把状态页专属占位符替换成实时计算值。 */
@@ -158,7 +156,6 @@ public final class GuiDataResolver {
                 .replace("%NEXTLEVEL%", String.valueOf(c.nextLevel()))
                 .replace("%CURHP%", String.valueOf(c.curHp()))
                 .replace("%CURGM%", c.curGm())
-                .replace("%CUREM%", c.curEm())
                 .replace("%CURGROWTH%", c.curGrowth())
                 .replace("%CURSTAR%", c.curStar());
     }

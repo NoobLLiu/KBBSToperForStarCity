@@ -47,12 +47,15 @@ KBBSToper 顶贴奖励流程正常，控制台与玩家端都显示"奖励发放
      }
      ```
 
-## 修改项 2【严重】成长值/经验值倍率"存而不用"
+## 修改项 2【严重】成长值倍率"存而不用"（经验倍率部分已作废）
 
 - 文件：`data/ActivityManager.java`、`listener/ActivityListener.java`
 - 现状：`setGrowthMultiplier` / `setExperienceMultiplier` 只把倍率存进 `ActivityData`；`ActivityListener.onExpGain` 等发放路径只是 `addActivity(...)` 累加成长值，**没有按倍率放大实际发放值**，也没有任何消费方读取倍率。
-- 后果：KBBSToper 首顶/额外奖励设置的"当日成长值倍率 / 经验值倍率"形同虚设。
-- 要求：明确倍率的作用对象并落地实现。推荐语义（与对接文档一致）：**当日该玩家获得的成长值/经验值 × 倍率**。即在所有 `addActivity` 加值处或单独的经验结算处乘以对应倍率；如果倍率另有消费方（商店折扣、面板展示等），请确认该消费方真实存在且生效，否则请实现为"发放放大"。
+- 后果：KBBSToper 顶贴奖励设置的"当日成长值倍率"形同虚设。
+- **注（2026-08-30 更新）**：KBBSToper **A16 起已整体移除"经验倍率"奖励**——`setExperienceMultiplier` /
+  `getExperienceMultiplier` 已从 KBBSToper 发布的接口删除，`setexperiencemultiplier` 命令也不再下发。
+  本修改项只需针对**成长值倍率**落地；MGactivity 侧的经验倍率相关代码/命令已无调用方，可自行决定去留。
+- 要求：明确倍率的作用对象并落地实现。推荐语义（与对接文档一致）：**当日该玩家获得的成长值 × 倍率**。即在所有 `addActivity` 加值处乘以对应倍率；如果倍率另有消费方（商店折扣、面板展示等），请确认该消费方真实存在且生效，否则请实现为"发放放大"。
 
 ## 修改项 3【中等】get 系列不走 resolvePlayerName，大小写不一致读错值
 

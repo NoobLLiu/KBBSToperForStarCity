@@ -105,7 +105,6 @@ public enum Message {
     GUI2_STATUS_NEXT("gui2.status.next"),
     GUI2_STATUS_CURHP("gui2.status.curhp"),
     GUI2_STATUS_CURGM("gui2.status.curgm"),
-    GUI2_STATUS_CUREM("gui2.status.curem"),
     GUI2_STATUS_CURGROWTH("gui2.status.curgrowth"),
     GUI2_STATUS_CURSTAR("gui2.status.curstar"),
     GUI2_STATUS_TITLE("gui2.status.title"),

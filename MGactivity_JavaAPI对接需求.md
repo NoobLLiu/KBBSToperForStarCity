@@ -32,9 +32,6 @@ public interface MGactivityApi {
     /** 设置玩家成长值倍率（取最大值，不叠加）。 */
     void setGrowthMultiplier(String player, double value);
 
-    /** 设置玩家经验值倍率（取最大值，不叠加）。 */
-    void setExperienceMultiplier(String player, double value);
-
     /** 设置玩家生命值上限（绝对值写入，跨天保留）。 */
     void setMaxHp(String player, int value);
 
@@ -48,7 +45,6 @@ public interface MGactivityApi {
 
     // ---- 可选查询方法（default 返回 -1，供 KBBSToper 奖励提示显示"当前值"）----
     default double getGrowthMultiplier(String player) { return -1; }
-    default double getExperienceMultiplier(String player) { return -1; }
     default double getGrowthValue(String player) { return -1; }      // 当前成长值(totalActivity)
     default long getStarlightPoints(String player) { return -1; }
 }
@@ -59,7 +55,6 @@ public interface MGactivityApi {
 | 方法                        | 含义    | 语义                                 | 范围 / 说明                                        |
 | ------------------------- | ----- | ---------------------------------- | ---------------------------------------------- |
 | `setGrowthMultiplier`     | 成长倍率  | **取最大值，不叠加相乘**；每日自动归位基准值（通常 `1.0`） | 建议 `[1.0, 5.0]`                                |
-| `setExperienceMultiplier` | 经验倍率  | **取最大值，不叠加相乘**；每日自动归位基准值           | 建议 `[1.0, 5.0]`                                |
 | `setMaxHp`                | 生命值上限 | **绝对值写入并持久化**，跨天保留，不要每日清零          | KBBSToper 已钳制到 `[30, 50]`，MGactivity 可再防御性钳制一次 |
 | `addStreakBreak`          | 连签中断值 | **增量累加**，立即生效                      | 非负整数                                           |
 | `addStarlightPoints`（default） | 星光点    | **增量累加**，立即生效；KBBSToper 优先走此 API，不可用时回退 Vault | 非负整数，**请务必覆写 default 空实现**          |
@@ -67,9 +62,9 @@ public interface MGactivityApi {
 - `player` 为玩家游戏名（与顶帖绑定名一致，可能含中文 / 特殊字符），请确保按名解析正确。
 - 倍率每日清零由 **MGactivity** 负责：KBBSToper 只下发 `set`，不下发 `reset`。
 - `maxhp` 是长期累积属性，KBBSToper 下发的是「已累加并钳制后的绝对值」，MGactivity 直接设为该值即可。
-- **可选查询方法**（`getGrowthMultiplier` / `getExperienceMultiplier` / `getGrowthValue` / `getStarlightPoints`）：
+- **可选查询方法**（`getGrowthMultiplier` / `getGrowthValue` / `getStarlightPoints`）：
   建议覆写（default 返回 `-1`）。KBBSToper 奖励完成提示需要展示「当前成长值 / 星光点 / 倍率」时会调用；
-  不覆写则提示中自动省略这些"当前值"，**不影响发奖本身**。对应实现：委托 `ActivityManager` 现有查询（`getGrowthMultiplier` / `getExperienceMultiplier` / `getPlayerData(name).getTotalActivity()` / `getStarlightPoints`）。
+  不覆写则提示中自动省略这些"当前值"，**不影响发奖本身**。对应实现：委托 `ActivityManager` 现有查询（`getGrowthMultiplier` / `getPlayerData(name).getTotalActivity()` / `getStarlightPoints`）。
 
 ---
 
@@ -128,11 +123,6 @@ public class MGactivityApiImpl implements MGactivityApi {
     }
 
     @Override
-    public void setExperienceMultiplier(String player, double value) {
-        // max(当前, 新值); 每日自动归 1.0
-    }
-
-    @Override
     public void setMaxHp(String player, int value) {
         int v = Math.max(30, Math.min(50, value)); // 防御性钳制
         // 绝对值写入并持久化
@@ -159,9 +149,8 @@ KBBSToper 在奖励判定后调用：
 ```java
 MGactivityApi mg = Bukkit.getServer().getServicesManager().load(MGactivityApi.class);
 if (mg != null) {
-    mg.setGrowthMultiplier(player, growthMult);   // 首顶
-    mg.setExperienceMultiplier(player, expMult);  // 额外
-    mg.setMaxHp(player, newMaxHp);                // 首顶 / 附加
+    mg.setGrowthMultiplier(player, growthMult);   // 成长倍率
+    mg.setMaxHp(player, newMaxHp);                // 生命上限
     // 断签: mg.addStreakBreak(player, val)
 } else {
     // 回退：下发 reward.mgactivity: 下的控制台命令（见《MGactivity对接文档.md》）
@@ -192,7 +181,7 @@ if (mg != null) {
 - [ ] 编译期依赖 KBBSToper core（或复制接口文件，全限定名一致）
 - [ ] `plugin.yml` 声明 `softdepend: [KBBSToper]`
 - [ ] `onEnable` 注册、`onDisable` 注销 `MGactivityApi`
-- [ ] `setGrowthMultiplier` / `setExperienceMultiplier` 为「取最大值」语义，且次日自动归 `1.0`
+- [ ] `setGrowthMultiplier` 为「取最大值」语义，且次日自动归 `1.0`
 - [ ] `setMaxHp` 为绝对值写入，跨天保留，范围钳制 `[30, 50]`，且应用到在线玩家
 - [ ] `addStreakBreak` 为增量写入，立即生效
 - [ ] **覆写 `addStarlightPoints`**（委托 `ActivityManager.addStarlightPoints`），星光点才能经 API 到账

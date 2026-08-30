@@ -168,7 +168,6 @@ gui2:
         next: '&e下次顶帖: &a+%NEXTGAIN% 级 &7→ &f%NEXTLEVEL% 级'
         curhp: '&e当前生命上限: &f%CURHP%'
         curgm: '&e当前成长倍率: &f%CURGM%'
-        curem: '&e当前经验倍率: &f%CUREM%'
         curgrowth: '&e当前成长值: &f%CURGROWTH%'
         curstar: '&e当前星光点: &f%CURSTAR%'
     #我的顶帖记录
@@ -200,7 +199,7 @@ gui2:
         limit: '&e【每日上限】&f每天最多计入 %TIMES% 次; 同一人两次顶帖至少间隔 %INTERVAL%; 超出仅记录不发奖'
         level: '&e【奖励等级】&f上限 %MAXLEVEL% 级, 跨天保留 —— 只要每天都顶帖, 等级就一直在'
         hp: '&e【生命上限】&f%HPBASE% + 奖励等级, 最高 %HPCAP%'
-        mult: '&e【成长/经验倍率】&f1 + 等级 × %STEP%, 满级 %MAXMULT%'
+        mult: '&e【成长倍率】&f1 + 等级 × %STEP%, 满级 %MAXMULT%'
         growth: '&e【成长值】&f每次有效顶帖 +%GROWTH%'
         star: '&e【星光点】&f高峰期顶帖额外 +%STAR%'
         decay: '&e【断签惩罚】&f漏顶一整天, 奖励等级 -%DECAY%; 连续漏几天按天累计扣'

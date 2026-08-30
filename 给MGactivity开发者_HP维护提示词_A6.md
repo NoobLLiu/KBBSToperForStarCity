@@ -74,7 +74,7 @@ void setMaxHp(String player, int value);   // 绝对值写入 + 应用到游戏�
 int  getMaxHp(String player);              // 可选：状态页展示"当前生命上限"，未实现返回 -1
 ```
 
-- 倍率 `setGrowthMultiplier / setExperienceMultiplier`：取最大值、不叠加，每日由你们归位 1.0。
+- 倍率 `setGrowthMultiplier`：取最大值、不叠加，每日由你们归位 1.0。（A16 起"经验倍率"奖励已从 KBBSToper 移除，`setExperienceMultiplier` 不再被调用。）
 - 星光点：`addStarlightPoints` 你们可保留，**但 KBBSToper A6 起不再调用它**（星光点改走 EssentialsX 经济，`money give`）。不必为星光点做改动。
 
 ---

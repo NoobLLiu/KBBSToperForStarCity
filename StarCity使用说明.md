@@ -1,7 +1,7 @@
 # KBBSToperForStarCity 使用说明
 
 > StarCity 服务器定制版（基于 KBBSToper 多模块重构版，插件版本 `3.7.4_A1`）
-> 顶帖奖励系统：玩家在论坛顶 StarCity 宣传帖，服务器自动发放成长 / 经验倍率、生命值上限、星光点等奖励。
+> 顶帖奖励系统：玩家在论坛顶 StarCity 宣传帖，服务器自动发放成长倍率、生命值上限、星光点等奖励。
 
 ---
 
@@ -10,7 +10,7 @@
 | 依赖 | 必须 | 说明 |
 | --- | --- | --- |
 | Paper 1.21（或 Nukkit 基岩版） | ✅ | 服务端核心 |
-| **MGactivity** | ✅ | 接收成长倍率 / 经验倍率 / HP 上限 / 连签中断的**导出接口命令** |
+| **MGactivity** | ✅ | 接收成长倍率 / HP 上限 / 连签中断的**导出接口命令** |
 | **Vault** + 任意经济插件（如 EssentialsX） | ✅ | 用于发放「星光点」（虚拟货币） |
 | PlaceholderAPI | ⬜ | 可选，提供占位符支持 |
 
@@ -48,7 +48,6 @@
 - 成长值 +100
 
 **额外（每天第 2–3 次）**
-- 经验倍率 ×1.25（由 MGactivity 设置，次日自动清零取最大值）
 - 成长值 +100
 
 **附加奖励（高峰时段 / 全服 12h 无人顶贴 触发其一）**
@@ -56,7 +55,7 @@
 
 **连签中断（未顶贴惩罚）**
 - 若某天未进行有效顶贴，次日自动执行 `addstreakbreak 2`（连签中断 -2）。
-- 倍率（成长 / 经验）不叠加，取当日最大值；每日自动重置。
+- 倍率（成长）不叠加，取当日最大值；每日自动重置。
 
 ### 4. 给玩家的提示
 - 奖励全自动，无需手动领取。
@@ -116,7 +115,6 @@ reward:
     inactive-hours-for-additional: 12   # 全服多少小时无人顶贴 → 触发附加奖励
     values:
         growth-multiplier: 1.25   # 首顶：成长倍率
-        experience-multiplier: 1.25  # 额外：经验倍率
         hp-step: 2                # 每次奖励 HP 上限 +2（首顶生效）
         hp-base: 30               # HP 上限基础值
         hp-hard-cap: 50           # HP 上限硬上限
@@ -127,7 +125,6 @@ reward:
         streak-break-daily: 2     # 未顶贴次日连签中断 -2
     mgactivity:                    # MGactivity 导出接口命令模板（%PLAYER% / %VALUE% 占位）
         growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
-        experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
     growth-grant-commands: []      # 成长值 +100 发放命令（见下方说明）

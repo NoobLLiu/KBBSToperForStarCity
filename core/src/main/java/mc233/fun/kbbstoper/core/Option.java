@@ -50,7 +50,6 @@ public enum Option {
     REWARD_VAL_GROWTH("reward.values.growth-per-reward"),
     REWARD_VAL_STAR("reward.values.star-points"),
     REWARD_MG_GROWTH_CMD("reward.mgactivity.growth-multiplier-cmd"),
-    REWARD_MG_EXP_CMD("reward.mgactivity.experience-multiplier-cmd"),
     REWARD_MG_MAXHP_CMD("reward.mgactivity.setmaxhp-cmd"),
     REWARD_GROWTH_GRANT("reward.growth-grant-commands"),
     WEBSITE("website");

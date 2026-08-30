@@ -91,7 +91,7 @@ gui:
 #   每次有效顶帖 -> 奖励等级 +N(平峰 gain-normal / 高峰 gain-peak), 封顶 level.max
 #   奖励等级决定玩家的持续增益:
 #     生命上限 = values.hp-base + 奖励等级   (不超过 values.hp-hard-cap)
-#     成长倍率 = 经验倍率 = 1 + 奖励等级 × level.multiplier-step
+#     成长倍率 = 1 + 奖励等级 × level.multiplier-step
 #   每次有效顶帖另发一次性奖励:
 #     成长值 +values.growth-per-reward
 #     星光点 +values.star-points (仅高峰期顶帖)
@@ -138,8 +138,6 @@ reward:
     mgactivity:
         # 设置成长值倍率(绝对值)
         growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
-        # 设置经验值倍率(绝对值)
-        experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
         # 生命值上限(传入绝对目标值, KBBSToper 侧已钳制到 [hp-base, hp-hard-cap];
         # MGactivity 不要再二次抬到下界, 直接采用传入值即可)
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'

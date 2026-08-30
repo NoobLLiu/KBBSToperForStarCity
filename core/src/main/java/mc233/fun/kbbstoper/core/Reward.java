@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  *   <li>每次有效顶帖: 平峰 +{@code reward.level.gain-normal} 级, 高峰 +{@code reward.level.gain-peak} 级,
  *       封顶 {@code reward.level.max}。</li>
  *   <li>生命上限 = {@code reward.values.hp-base} + 等级, 不超过 {@code reward.values.hp-hard-cap}。</li>
- *   <li>成长/经验倍率 = 1 + 等级 × {@code reward.level.multiplier-step}。</li>
+ *   <li>成长倍率 = 1 + 等级 × {@code reward.level.multiplier-step}。</li>
  *   <li>每次有效顶帖发放成长值 {@code reward.values.growth-per-reward}。</li>
  *   <li>高峰期顶帖额外发放星光点 {@code reward.values.star-points}(走 EssentialsX 经济)。</li>
  *   <li>断签: 每漏掉一整天扣 {@code reward.level.decay-per-missed-day} 级。</li>
@@ -66,7 +66,7 @@ public class Reward {
         return Math.max(0, Option.REWARD_LEVEL_GAIN_PEAK.getInt(2));
     }
 
-    /** 每级倍率增量(成长/经验倍率 = 1 + 等级 × step)。 */
+    /** 每级倍率增量(成长倍率 = 1 + 等级 × step)。 */
     public static double multiplierStep() {
         return Math.max(0, Option.REWARD_LEVEL_MULT_STEP.getDouble(0.1));
     }
@@ -268,7 +268,7 @@ public class Reward {
         return Math.max(0, Math.min(maxLevel(), level));
     }
 
-    /** 指定等级对应的成长/经验倍率。 */
+    /** 指定等级对应的成长倍率。 */
     public static double multiplierForLevel(int level) {
         return 1.0 + clampLevel(level) * multiplierStep();
     }
@@ -282,11 +282,9 @@ public class Reward {
     private void dispatchLevelState(String name, List<String> cmds, MGactivityApi mg,
                                     double multiplier, int maxHp) {
         final String resetGrowth = "mgactivity resetgrowthmultiplier " + name;
-        final String resetExperience = "mgactivity resetexperiencemultiplier " + name;
         KBBSToperCore.scheduler().runSync(() -> {
             // MGactivity 的 set* 为取最大值；先 reset 才能在断签后正确下降。
             KBBSToperCore.platform().dispatchConsoleCommand(resetGrowth);
-            KBBSToperCore.platform().dispatchConsoleCommand(resetExperience);
             if (mg == null) {
                 for (String cmd : cmds) {
                     if (cmd != null && !cmd.isBlank()) {
@@ -296,13 +294,10 @@ public class Reward {
                 KBBSToperCore.platform().dispatchConsoleCommand(buildMgCommand(
                         Option.REWARD_MG_GROWTH_CMD.getString(), name, multiplier));
                 KBBSToperCore.platform().dispatchConsoleCommand(buildMgCommand(
-                        Option.REWARD_MG_EXP_CMD.getString(), name, multiplier));
-                KBBSToperCore.platform().dispatchConsoleCommand(buildMgCommand(
                         Option.REWARD_MG_MAXHP_CMD.getString(), name, maxHp));
                 return;
             }
             mg.setGrowthMultiplier(name, multiplier);
-            mg.setExperienceMultiplier(name, multiplier);
             mg.setMaxHp(name, maxHp);
             for (String cmd : cmds) {
                 if (cmd != null && !cmd.isBlank()) {
@@ -320,8 +315,7 @@ public class Reward {
         details.append("奖励等级 +").append(levelGain)
                 .append(" (当前 ").append(level).append("/").append(maxLevel()).append(")")
                 .append(", 生命上限 ").append(newMaxHp)
-                .append(", 成长倍率 x").append(mult)
-                .append(", 经验倍率 x").append(mult);
+                .append(", 成长倍率 x").append(mult);
         if (growthGranted > 0) {
             details.append(" | 成长值 +").append(formatValue(growthGranted));
         }
@@ -477,16 +471,13 @@ public class Reward {
         final int hp = maxhp;
         KBBSToperCore.scheduler().runSync(() -> {
             KBBSToperCore.platform().dispatchConsoleCommand("mgactivity resetgrowthmultiplier " + n);
-            KBBSToperCore.platform().dispatchConsoleCommand("mgactivity resetexperiencemultiplier " + n);
             if (mg != null) {
                 mg.setGrowthMultiplier(n, multiplier);
-                mg.setExperienceMultiplier(n, multiplier);
                 mg.setMaxHp(n, hp);
             } else {
                 for (String cmd : List.of(
                         buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), n, hp),
-                        buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), n, multiplier),
-                        buildMgCommand(Option.REWARD_MG_EXP_CMD.getString(), n, multiplier))) {
+                        buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), n, multiplier))) {
                     if (cmd != null && !cmd.isBlank()) {
                         KBBSToperCore.platform().dispatchConsoleCommand(cmd);
                     }
