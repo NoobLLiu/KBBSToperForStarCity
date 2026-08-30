@@ -12,7 +12,7 @@
 # 注意: 本字段必须与 build.gradle 的 version 一致!
 # ConfigManager 每次启动比对: 不一致会把本文件与 lang.yml 重置为内置模板(旧文件备份为 *_old.yml)
 # 之前 A1 -> A2 忘了同步, 导致每次启动都重置配置; 现已对齐
-version: 3.7.4_A10
+version: 3.7.4_A11
 
 #DEBUG模式
 debug: false
@@ -85,11 +85,7 @@ gui:
 #奖励设置（StarCity 魔改版）
 reward:
     #自动奖励间隔，循环访问宣传帖自动发奖，单位秒，0关闭
-    #默认 600 = 每 10 分钟轮询一次（降低对论坛的请求压力）
-    auto: 600
-    #玩家手动点击"领取顶帖奖励"触发检查的冷却，单位秒
-    #默认 600 = 10 分钟，独立于 list/top 的查询冷却(querycooldown)
-    manual-cooldown: 600
+    auto: 30
     #顶贴后领取奖励的有效期, 单位天
     period: 10
     #同一个玩家距离上次顶贴多少分钟后再次顶贴才算有效, 0=一直有效
@@ -106,8 +102,8 @@ reward:
 
     # ---- 每日次数配额 ----
     daily:
-        first-limit: 1   # 首顶奖励每日最多 1 次
-        extra-limit: 2   # 额外顶贴奖励每日最多 2 次
+        first-limit: 3
+        extra-limit: 0
 
     # 12 小时内全服无人顶贴 → 触发"附加顶贴奖励"
     # 与"处于高峰期"满足其一即触发(详见设计稿)
@@ -115,15 +111,15 @@ reward:
 
     # ---- 所有数值均可配置(改这里即可) ----
     values:
-        growth-multiplier: 1.25        # 首顶: 当日成长值倍率
-        experience-multiplier: 1.25    # 额外: 当日经验值倍率
-        hp-step: 2                     # 首顶奖励 生命值上限 +2(额外顶贴不加 HP)
+        growth-multiplier: 1.1        # 首顶: 当日成长值倍率
+        experience-multiplier: 1.1    # 额外: 当日经验值倍率
+        hp-step: 1                     # 首顶奖励 生命值上限 +2(额外顶贴不加 HP)
         hp-base: 20                    # 生命值下限(初始/基准): 未顶过帖的玩家初始上限=20
-        hp-hard-cap: 50                # 生命值上限(一排半爱心, +30)
+        hp-hard-cap: 40                # 生命值上限(一排半爱心, +30)
         growth-per-reward: 100         # 每次普通奖励 成长值 +100
-        additional-hp-step: 2          # 附加奖励额外 生命值上限 +2
+        additional-hp-step: 0          # 附加奖励额外 生命值上限 +2
         additional-growth: 100         # 附加奖励 成长值 +100
-        star-points: 300               # 附加奖励 星光点(对接 EssentialsX 经济, 即 Essentials 金钱)
+        star-points: 300               # 附加奖励 星光点(走 Vault)
         streak-break-daily: 2          # 连签中断每日下降 2
 
     # ---- MGactivity 导出接口命令模板 ----
@@ -133,26 +129,26 @@ reward:
         growth-multiplier-cmd: 'mgactivity setgrowthmultiplier %PLAYER% %VALUE%'
         # 额外: 设置当日经验值倍率
         experience-multiplier-cmd: 'mgactivity setexperiencemultiplier %PLAYER% %VALUE%'
-        # 生命值上限(传入绝对目标值, KBBSToper 侧已钳制到 [20,50];
-        # MGactivity 不要再二次抬到下界 30, 直接采用传入值即可)
+        # 生命值上限(传入绝对目标值, MGactivity 钳制到 [30,50])
         setmaxhp-cmd: 'mgactivity setmaxhp %PLAYER% %VALUE%'
         # 连签中断(收到即扣减)
         streak-break-cmd: 'mgactivity addstreakbreak %PLAYER% %VALUE%'
-        # 星光点是否走 MGactivity Java API(addStarlightPoints)—— 已弃用
-        # 自 v3.7.4_A3 起, 星光点统一直接对接 EssentialsX 经济(见 reward.vault), 不再经 MGactivity
+        # 星光点是否优先走 MGactivity Java API(addStarlightPoints, 增量累加)
+        # 接口不可用(未注册/未覆写)或此处关闭时, 自动回退 reward.vault 的 Vault 经济发放
         enable-star-points: true
 
-    # ---- 成长值发放指令(每次有效奖励 +growth-per-reward, 附加奖励再 +additional-growth) ----
-    # 成长值(数值)走 MGactivity 控制台命令, 不经 Java API(刻意不新增 addGrowthPoints 方法)。
-    # %PLAYER% = 玩家名, %VALUE% = 本次成长值(由插件按配置填入)。
-    growth-grant-commands:
-      - 'mgactivity addgrowthpoints %PLAYER% %VALUE%'
+    # ---- 成长值 +100 的发放指令 ----
+    # 说明: MGactivity 当前导出接口没有"加成长值"方法,
+    # 此处填入你实际的成长值发放命令(每次普通/附加奖励都会执行一次)。
+    # 若暂不接入, 留空即可(仅倍率/HP/星光点/连签生效)。
+    growth-grant-commands: []
+    #  - '你的成长值发放命令 %PLAYER% 100'
 
     # ---- 附加顶贴奖励(高峰期 或 12h 无人顶贴, 任一满足) ----
     additional:
         enable: true
 
-    # ---- 星光点发放通道(对接 EssentialsX 经济) ----
-    # 优先走 EssentialsX 原生经济 API 直接给玩家加钱(即 Essentials 金钱);
-    # 若服务器未安装 EssentialsX, 自动回退控制台命令 money give <玩家> <金额>。
-    # (自 v3.7.4_A6 起已移除 Vault 依赖, 不再经 Vault 经济核心。)
+    # ---- 星光点回退通道(Vault 经济核心, 不用命令) ----
+    # 仅当 MGactivity API 通道不可用(见 reward.mgactivity.enable-star-points)时启用
+    vault:
+        enable-star-points: true

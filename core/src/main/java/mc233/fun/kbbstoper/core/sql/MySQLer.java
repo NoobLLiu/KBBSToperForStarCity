@@ -75,7 +75,7 @@ public class MySQLer extends SQLer {
 
     protected void createTablePosters() {
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, PRIMARY KEY (`uuid`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, `rewardlevel` int(0) NOT NULL DEFAULT 0, PRIMARY KEY (`uuid`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
                 getTableName("posters"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
@@ -84,6 +84,7 @@ public class MySQLer extends SQLer {
         }
         // 兼容旧表: 补上 maxhp 列(列已存在则忽略异常)
         migrateMaxHpColumn();
+        migrateRewardLevelColumn();
     }
 
     private void migrateMaxHpColumn() {
@@ -92,6 +93,15 @@ public class MySQLer extends SQLer {
                     + "` ADD COLUMN `maxhp` int(0) NOT NULL DEFAULT 20");
         } catch (SQLException ignored) {
             // 列已存在(错误码 1060 duplicate column)时静默跳过
+        }
+    }
+
+    private void migrateRewardLevelColumn() {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE `" + getTableName("posters")
+                    + "` ADD COLUMN `rewardlevel` int(0) NOT NULL DEFAULT 0");
+        } catch (SQLException ignored) {
+            // Column already exists on upgraded databases.
         }
     }
 

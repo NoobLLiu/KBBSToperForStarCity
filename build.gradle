@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = 'mc233'
-    version = '3.7.4_A10'
+    version = '3.7.4_A11'
 }
 
 // 根项目只是聚合器，不产出 jar
@@ -20,8 +20,6 @@ subprojects {
         maven { url = 'https://repo.opencollab.dev/maven-releases/' }
         // Geyser API（含 Cumulus 表单库）: 同时含 release 与 snapshot
         maven { url = 'https://repo.opencollab.dev/main/' }
-        // EssentialsX 经济/API（星光点对接 Essentials 金钱，需 2.19+ 的 v2 API）
-        maven { url = 'https://repo.essentialsx.net/releases/' }
         maven { url = 'https://oss.sonatype.org/content/groups/public/' }
         maven { url = 'https://jitpack.io' }
     }

@@ -45,8 +45,7 @@ public final class GuiDataResolver {
 
     /** 今日可领上限（首顶 + 额外）。 */
     public static int todayLimit() {
-        return Math.max(0, Option.REWARD_DAILY_FIRST.getInt())
-                + Math.max(0, Option.REWARD_DAILY_EXTRA.getInt());
+        return Reward.DAILY_REWARD_LIMIT;
     }
 
     /** 宣传帖地址。 */
@@ -75,13 +74,17 @@ public final class GuiDataResolver {
         String rewardbefore = (poster == null || poster.getRewardbefore() == null || poster.getRewardbefore().isBlank())
                 ? Message.NONE.getString() : poster.getRewardbefore();
         int rewardtime = poster == null ? 0 : poster.getRewardtime();
-        int maxhp = poster == null ? Option.REWARD_VAL_HP_BASE.getInt() : poster.getMaxhp();
+        int rewardlevel = poster == null ? 0 : Math.max(0,
+                Math.min(Reward.MAX_REWARD_LEVEL, poster.getRewardlevel()));
+        int maxhp = Math.min(Option.REWARD_VAL_HP_CAP.getInt(),
+                Option.REWARD_VAL_HP_BASE.getInt() + rewardlevel);
         double cd = cooldownSeconds(player);
 
         return text
                 .replace("%BBSNAME%", bbsname)
                 .replace("%POSTTIMES%", String.valueOf(postTimes(poster)))
                 .replace("%MAXHP%", String.valueOf(maxhp))
+                .replace("%REWARDLEVEL%", String.valueOf(rewardlevel))
                 .replace("%REWARDTIME%", String.valueOf(rewardtime))
                 .replace("%REWARDBEFORE%", rewardbefore)
                 .replace("%TODAYLIMIT%", String.valueOf(todayLimit()))
