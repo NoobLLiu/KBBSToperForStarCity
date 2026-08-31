@@ -78,6 +78,7 @@ public enum Message {
     DEBUG_CLEAR("debug.clear"),
     DEBUG_STATUS("debug.status"),
     DEBUG_SIMULATE("debug.simulate"),
+    DEBUG_REFRESH("debug.refresh"),
     // ---- 表单界面（Nukkit 端使用，Bukkit 端忽略） ----
     FORM_TITLE("form.title"),
     FORM_CONTENT("form.content"),

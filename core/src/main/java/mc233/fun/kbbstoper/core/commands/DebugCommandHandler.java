@@ -6,6 +6,7 @@ import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
+import mc233.fun.kbbstoper.core.Reminder;
 import mc233.fun.kbbstoper.core.Reward;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
@@ -55,6 +56,9 @@ public class DebugCommandHandler implements CommandHandler {
                 break;
             case "simulate":
                 simulate(player, sender);
+                break;
+            case "refresh":
+                refreshAll(sender);
                 break;
             default:
                 sender.sendMessage(Message.PREFIX.getString() + Message.INVALID.getString());
@@ -132,10 +136,24 @@ public class DebugCommandHandler implements CommandHandler {
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_SIMULATE.getString());
     }
 
+    /** refresh: 刷新全服已绑定玩家的血量上限与成长倍率，同步到 MGactivity。 */
+    private void refreshAll(PlatformSender sender) {
+        int count = 0;
+        for (PlatformPlayer p : KBBSToperCore.platform().getOnlinePlayers()) {
+            Poster poster = SQLManager.getSQLer().getPoster(p.getUniqueId().toString());
+            if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
+                Reward.refreshRewardState(poster, false);
+                count++;
+            }
+        }
+        sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_REFRESH.getString()
+                .replace("%COUNT%", String.valueOf(count)));
+    }
+
     @Override
     public List<String> tabComplete(PlatformSender sender, String[] args) {
         if (args.length == 2) {
-            return Arrays.asList("clear", "status", "simulate", "open");
+            return Arrays.asList("clear", "status", "simulate", "open", "refresh");
         }
         return null;
     }

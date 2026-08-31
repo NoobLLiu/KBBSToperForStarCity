@@ -9,8 +9,9 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 玩家进服提示。
- * 平台模块负责监听自己的加入事件，然后调用 {@link #onJoin(PlatformPlayer)}。
+ * 玩家进服/切换维度时的同步与提示。
+ * 平台模块负责监听自己的事件，然后调用 {@link #onJoin(PlatformPlayer)} 或
+ * {@link #onDimensionChange(PlatformPlayer)}。
  */
 public class Reminder {
 
@@ -58,6 +59,24 @@ public class Reminder {
                 }
                 if (!isbinded) {
                     player.sendMessage(Message.PREFIX.getString() + Message.HELP_BINDING.getString());
+                }
+            } finally {
+                Util.exitTask();
+            }
+        });
+    }
+
+    /**
+     * 玩家切换维度后调用；读取最新数据并向 MGactivity 同步血量上限与成长倍率。
+     * <p>维度切换时 Paper 会重置玩家血量为默认值，需要主动把持久化的上限刷回去。</p>
+     */
+    public static void onDimensionChange(PlatformPlayer player) {
+        KBBSToperCore.scheduler().runAsync(() -> {
+            Util.enterTask();
+            try {
+                Poster poster = sql.getPoster(player.getUniqueId().toString());
+                if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
+                    Reward.refreshRewardState(poster, false);
                 }
             } finally {
                 Util.exitTask();

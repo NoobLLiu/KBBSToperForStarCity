@@ -138,13 +138,14 @@ help:
     check: '&3检查: &b/bt check < bbsid | player > <值>'
     delete: '&3删除某玩家的数据: &b/bt delete <玩家游戏ID>'
     reload: '&3重载插件: &b/bt reload'
-    debug: '&3OP调试: &b/bt debug < clear | status | simulate >'
+    debug: '&3OP调试: &b/bt debug < clear | status | simulate | refresh >'
 
 #OP调试指令
 debug:
     clear: '&a已清空你的顶帖状态(奖励等级/今日已领次数/上次领奖日/HP上限已重置, 顶帖记录已清除).'
     status: '&b你的顶帖状态 — 论坛ID: &e%BBSNAME%&b, 上次领奖日: &e%REWARDBEFORE%&b, 今日已顶: &e%REWARDTIME%&b 次, HP上限: &e%MAXHP%'
     simulate: '&a已模拟一次"检测到你顶帖", 请查看奖励发放与控制台(MGactivity/EssentialsX)响应.'
+    refresh: '&a已刷新全服 %COUNT% 名已绑定玩家的血量上限与成长倍率（同步到 MGactivity）.'
 
 #=============================================================
 # 双端新 GUI（v2 最终稿）共用文案

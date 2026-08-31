@@ -21,6 +21,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -164,5 +165,23 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Reminder.onJoin(new BukkitPlayer(event.getPlayer()));
+    }
+
+    /**
+     * 维度切换（主世界 ↔ 下界 ↔ 末地）时重新同步血量上限与成长倍率。
+     * Paper 在传送时会把玩家血量重置为默认值，需要把持久化的上限刷回去。
+     * 只处理维度变更（从 World A 到 World B），忽略同一维度内的传送。
+     */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDimensionChange(PlayerTeleportEvent event) {
+        if (event.getFrom().getWorld() == event.getTo().getWorld()) {
+            return; // 同维度传送，不处理
+        }
+        // 异步读 DB 后切回主线程刷新属性（同步执行，因为 refreshRewardState 内部会切线程）
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            if (event.getPlayer().isOnline()) {
+                Reminder.onDimensionChange(new BukkitPlayer(event.getPlayer()));
+            }
+        }, 5L); // 延迟 5 tick，等传送完全落地后再刷新
     }
 }
