@@ -12,6 +12,7 @@ import mc233.fun.kbbstoper.core.Reminder;
 import mc233.fun.kbbstoper.core.commands.ReloadHook;
 import mc233.fun.kbbstoper.core.platform.PlatformSender;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
+import cn.gmzc.skincache.api.PlayerSkinService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -35,6 +36,7 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
 
     private static KBBSToperBukkit instance;
     private BukkitPlatform platform;
+    private PlayerSkinService skinService;
 
     /** 箱子界面的布局配置，仅 Bukkit 端需要。 */
     private static YamlConfiguration guiConfig;
@@ -45,6 +47,11 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
 
     public static YamlConfiguration getGuiConfig() {
         return guiConfig;
+    }
+
+    /** 获取 GMZCSkinCache 的皮肤服务，未安装时返回 null。 */
+    public static PlayerSkinService getSkinService() {
+        return instance == null ? null : instance.skinService;
     }
 
     @Override
@@ -67,6 +74,14 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
             getLogger().info("已检测到 Geyser API: 基岩版玩家将收到原生表单");
         } else {
             getLogger().info("未检测到 Geyser API: 基岩版玩家走 UUID 前缀识别(Geyser 在代理端时经 Floodgate 发送), 否则回退 Java 界面");
+        }
+
+        // GMZCSkinCache 皮肤服务（可选，用于排行榜头颅正确显示玩家皮肤）
+        skinService = Bukkit.getServicesManager().load(PlayerSkinService.class);
+        if (skinService != null) {
+            getLogger().info("已检测到 GMZCSkinCache: 排行榜头颅将显示玩家真实皮肤");
+        } else {
+            getLogger().info("未检测到 GMZCSkinCache: 排行榜头颅使用默认样式（安装 GMZCSkinCache 可显示真实皮肤）");
         }
 
         // Bukkit 端用聊天监听收集论坛 ID，绑定结束时要注销监听

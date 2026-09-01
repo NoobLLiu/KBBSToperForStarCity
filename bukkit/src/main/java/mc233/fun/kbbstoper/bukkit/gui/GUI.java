@@ -1,6 +1,7 @@
 package mc233.fun.kbbstoper.bukkit.gui;
 
 import mc233.fun.kbbstoper.bukkit.BukkitPlayer;
+import mc233.fun.kbbstoper.bukkit.KBBSToperBukkit;
 import mc233.fun.kbbstoper.core.GuiAction;
 import mc233.fun.kbbstoper.core.GuiDataResolver;
 import mc233.fun.kbbstoper.core.KBBSToperCore;
@@ -10,6 +11,7 @@ import mc233.fun.kbbstoper.core.Poster;
 import mc233.fun.kbbstoper.core.TopState;
 import mc233.fun.kbbstoper.core.sql.SQLManager;
 import mc233.fun.kbbstoper.core.sql.SQLer;
+import cn.gmzc.skincache.api.PlayerSkinService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -26,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 箱子界面构建（v2 最终稿）。
@@ -163,8 +166,14 @@ public final class GUI {
                 }
                 meta.setLore(lore);
 
-                if (mat == Material.PLAYER_HEAD && meta instanceof SkullMeta) {
-                    ((SkullMeta) meta).setOwningPlayer(player);
+                if (mat == Material.PLAYER_HEAD && meta instanceof SkullMeta skullMeta) {
+                    // 优先使用 GMZCSkinCache 显示真实皮肤，回退到 setOwningPlayer
+                    PlayerSkinService skinService = KBBSToperBukkit.getSkinService();
+                    if (skinService != null) {
+                        skinService.apply(skullMeta, player);
+                    } else {
+                        skullMeta.setOwningPlayer(player);
+                    }
                 }
                 item.setItemMeta(meta);
                 inv.setItem(slot, item);
@@ -281,7 +290,7 @@ public final class GUI {
                 List<String> lore = new ArrayList<>();
                 lore.add(color(Message.POSTERID.getString() + ": &f" + p.getBbsname()));
                 lore.add(color(Message.POSTERNUM.getString() + ": &f" + p.getCount()));
-                ItemStack head = skull(p.getName());
+                ItemStack head = skull(p.getName(), p.getUuid());
                 placeItem(inv, slot, head, color("&e#" + (i + 1) + " &f" + p.getName()), lore);
             }
         }
@@ -430,14 +439,29 @@ public final class GUI {
         }
     }
 
-    private static ItemStack skull(String playerName) {
+    /**
+     * 创建玩家头颅物品。
+     * 优先使用 GMZCSkinCache 服务显示真实皮肤，未安装时回退到 setOwningPlayer。
+     */
+    private static ItemStack skull(String playerName, String uuid) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = item.getItemMeta();
-        if (meta instanceof SkullMeta) {
-            if (playerName != null && !playerName.isBlank()) {
-                ((SkullMeta) meta).setOwningPlayer(Bukkit.getOfflinePlayer(playerName));
+        if (meta instanceof SkullMeta skullMeta) {
+            // 优先尝试 GMZCSkinCache 真实皮肤
+            PlayerSkinService skinService = KBBSToperBukkit.getSkinService();
+            boolean applied = false;
+            if (skinService != null && uuid != null && !uuid.isBlank()) {
+                try {
+                    applied = skinService.apply(skullMeta, UUID.fromString(uuid));
+                } catch (IllegalArgumentException ignored) {
+                    // UUID 格式错误，回退
+                }
             }
-            item.setItemMeta(meta);
+            // 回退：使用 Bukkit 内置方式（不一定能显示正确皮肤）
+            if (!applied && playerName != null && !playerName.isBlank()) {
+                skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(playerName));
+            }
+            item.setItemMeta(skullMeta);
         }
         return item;
     }
