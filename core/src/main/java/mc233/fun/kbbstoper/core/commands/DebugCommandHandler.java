@@ -136,18 +136,23 @@ public class DebugCommandHandler implements CommandHandler {
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_SIMULATE.getString());
     }
 
-    /** refresh: 刷新全服已绑定玩家的血量上限与成长倍率，同步到 MGactivity。 */
+    /** refresh: 刷新全服玩家的血量上限与成长倍率，同步到 MGactivity。已绑定玩家按等级刷新，未绑定玩家重置为默认值。 */
     private void refreshAll(PlatformSender sender) {
-        int count = 0;
+        int bound = 0;
+        int unbound = 0;
         for (PlatformPlayer p : KBBSToperCore.platform().getOnlinePlayers()) {
             Poster poster = SQLManager.getSQLer().getPoster(p.getUniqueId().toString());
             if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
                 Reward.refreshRewardState(poster, false);
-                count++;
+                bound++;
+            } else {
+                Reward.resetToDefault(p.getName());
+                unbound++;
             }
         }
         sender.sendMessage(Message.PREFIX.getString() + Message.DEBUG_REFRESH.getString()
-                .replace("%COUNT%", String.valueOf(count)));
+                .replace("%COUNT%", String.valueOf(bound))
+                .replace("%UNBOUND%", String.valueOf(unbound)));
     }
 
     @Override

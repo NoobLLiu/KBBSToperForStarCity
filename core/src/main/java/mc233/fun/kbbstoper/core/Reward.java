@@ -486,6 +486,36 @@ public class Reward {
         });
     }
 
+    /**
+     * 把玩家的 MGactivity 状态重置为默认值（生命上限 = hp-base，倍率 = 1.0）。
+     * 用于未绑定玩家的异常状态清理，防止残留的血量上限/倍率导致游戏异常。
+     *
+     * @param playerName 玩家游戏名
+     */
+    public static void resetToDefault(String playerName) {
+        if (playerName == null || playerName.isBlank()) {
+            return;
+        }
+        int baseHp = hpBase();
+        MGactivityApi mg = KBBSToperCore.platform().getMGactivityApi();
+        final String n = playerName;
+        KBBSToperCore.scheduler().runSync(() -> {
+            KBBSToperCore.platform().dispatchConsoleCommand("mgactivity resetgrowthmultiplier " + n);
+            if (mg != null) {
+                mg.setGrowthMultiplier(n, 1.0);
+                mg.setMaxHp(n, baseHp);
+            } else {
+                for (String cmd : List.of(
+                        buildMgCommand(Option.REWARD_MG_MAXHP_CMD.getString(), n, baseHp),
+                        buildMgCommand(Option.REWARD_MG_GROWTH_CMD.getString(), n, 1.0))) {
+                    if (cmd != null && !cmd.isBlank()) {
+                        KBBSToperCore.platform().dispatchConsoleCommand(cmd);
+                    }
+                }
+            }
+        });
+    }
+
     private static String yesterday() {
         Calendar c = Calendar.getInstance();
         c.add(Calendar.DAY_OF_MONTH, -1);

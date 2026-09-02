@@ -31,6 +31,9 @@ public class Reminder {
                 // 上线即主动向 MGactivity 刷新奖励数值状态(生命上限等)，不受 joinmessage 开关影响
                 if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
                     Reward.refreshRewardState(poster, false);
+                } else {
+                    // 未绑定玩家：重置 MGactivity 状态为默认值，防止残留异常
+                    Reward.resetToDefault(player.getName());
                 }
                 if (!Option.BBS_JOINMESSAGE.getBoolean()) {
                     return;
@@ -77,6 +80,8 @@ public class Reminder {
                 Poster poster = sql.getPoster(player.getUniqueId().toString());
                 if (poster != null && poster.getBbsname() != null && !poster.getBbsname().isBlank()) {
                     Reward.refreshRewardState(poster, false);
+                } else {
+                    Reward.resetToDefault(player.getName());
                 }
             } finally {
                 Util.exitTask();
