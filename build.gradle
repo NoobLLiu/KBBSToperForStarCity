@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = 'mc233'
-    version = '3.7.4_A16'
+    version = '3.7.4_A17'
 }
 
 // 根项目只是聚合器，不产出 jar

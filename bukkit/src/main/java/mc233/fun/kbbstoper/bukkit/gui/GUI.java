@@ -225,7 +225,7 @@ public final class GUI {
         st.recordPage = cur;
         st.totalRecordPages = total;
 
-        Inventory inv = menu(6, Message.GUI2_RECORDS_TITLE.getString(), "records");
+        Inventory inv = menu(6, Message.GUI2_RECORDS_TITLE.getString(), "records", false);
 
         int start = (cur - 1) * RECORD_PAGE_SIZE;
         int end = Math.min(start + RECORD_PAGE_SIZE, all.size());
@@ -246,7 +246,11 @@ public final class GUI {
                 } else {
                     lore.add(Message.GUI2_RECORD_NOREWARD.getString());
                 }
-                place(inv, slot, Material.PAPER, ts.time, lore, null);
+                // 物品名必须非空: 1.20.5+ 空 display name 会丢失自定义名, 客户端回退显示原版"纸"
+                String timeStr = ts.time == null ? "" : ts.time;
+                String name = Message.GUI2_RECORD_NAME.getString("&e顶帖时间 &f%TIME%")
+                        .replace("%TIME%", timeStr.isBlank() ? "-" : timeStr);
+                place(inv, slot, Material.PAPER, name, lore, null);
             }
         }
         paging(inv, cur, total, "records");
@@ -381,10 +385,21 @@ public final class GUI {
 
     /** 建一张带边框的菜单。kind 用于翻页路由。 */
     private static Inventory menu(int rows, String title, String kind) {
+        return menu(rows, title, kind, true);
+    }
+
+    /**
+     * 建一张菜单。kind 用于翻页路由。
+     *
+     * @param border 是否填充四周的玻璃板边框(记录页内容较多, 不加边框)
+     */
+    private static Inventory menu(int rows, String title, String kind, boolean border) {
         Holder holder = new Holder(kind);
         Inventory inv = Bukkit.createInventory(holder, rows * 9, color(title));
         holder.bind(inv);
-        fillBorder(inv);
+        if (border) {
+            fillBorder(inv);
+        }
         return inv;
     }
 

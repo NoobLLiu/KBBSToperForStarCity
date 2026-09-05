@@ -3,6 +3,8 @@ package mc233.fun.kbbstoper.core;
 import mc233.fun.kbbstoper.core.commands.DebugCommandHandler;
 import mc233.fun.kbbstoper.core.platform.MGactivityApi;
 import mc233.fun.kbbstoper.core.platform.PlatformPlayer;
+import mc233.fun.kbbstoper.core.sql.SQLManager;
+import mc233.fun.kbbstoper.core.sql.SQLer;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -10,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.UUID;
 
 /**
  * 奖励判定与发放(StarCity 魔改版, "累计奖励等级"模型)。
@@ -18,12 +20,13 @@ import java.util.regex.Pattern;
  * <p>规则要点(全部取自 config.yml, 无硬编码)：
  * <ul>
  *   <li>每次有效顶帖: 平峰 +{@code reward.level.gain-normal} 级, 高峰 +{@code reward.level.gain-peak} 级,
- *       封顶 {@code reward.level.max}。</li>
+ *       封顶 {@code reward.level.max}。高峰/平峰按<b>论坛顶帖时间</b>判定, 与玩家领取时刻无关。</li>
  *   <li>生命上限 = {@code reward.values.hp-base} + 等级, 不超过 {@code reward.values.hp-hard-cap}。</li>
  *   <li>成长倍率 = 1 + 等级 × {@code reward.level.multiplier-step}。</li>
  *   <li>每次有效顶帖发放成长值 {@code reward.values.growth-per-reward}。</li>
  *   <li>高峰期顶帖额外发放星光点 {@code reward.values.star-points}(走 EssentialsX 经济)。</li>
- *   <li>断签: 每漏掉一整天扣 {@code reward.level.decay-per-missed-day} 级。</li>
+ *   <li>断签: 每漏掉一整天扣 {@code reward.level.decay-per-missed-day} 级,
+ *       以<b>顶帖日期</b>结算({@link #settlePost} / {@link #maintainDailyState}), 玩家离线同样生效。</li>
  * </ul>
  */
 public class Reward {
@@ -33,9 +36,9 @@ public class Reward {
     private final int index;
     private final Poster poster;
 
-    private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{2}-\\d{2}$");
-    private static final SimpleDateFormat DAY_FORMAT = new SimpleDateFormat("yyyy-M-dd");
-    private static final SimpleDateFormat BBS_FORMAT = new SimpleDateFormat("yyyy-M-d HH:mm");
+    private static final String DAY_PATTERN = "yyyy-M-dd";
+    private static final String TIME_PATTERN = "yyyy-M-d HH:mm";
+    private static final String TIME_PATTERN_SS = "yyyy-M-d HH:mm:ss";
 
     public Reward(PlatformPlayer player, Crawler crawler, int index, Poster poster) {
         this.player = player;
@@ -101,21 +104,76 @@ public class Reward {
         return Option.REWARD_PEAK_END.getInt(22);
     }
 
-    // ================= 通用工具 =================
+    // ================= 日期/时间工具 =================
 
-    private static Calendar parseDateToCalendar(String dateStr, SimpleDateFormat dateFormat) {
+    /**
+     * 每次调用都新建实例: SimpleDateFormat 非线程安全,
+     * 插件的自动奖励/上下线维护都是异步任务, 不能共享静态格式化实例。
+     */
+    private static SimpleDateFormat dayFormat() {
+        return new SimpleDateFormat(DAY_PATTERN);
+    }
+
+    /** 今天的日期字符串(yyyy-M-dd)。 */
+    public static String todayString() {
+        return dayFormat().format(new Date());
+    }
+
+    /**
+     * 解析论坛顶帖时间字符串。
+     *
+     * <p>论坛的 span title 可能带秒("yyyy-M-d HH:mm:ss")也可能不带("yyyy-M-d HH:mm"),
+     * 单一格式解析带秒的串会失败回退成 1970 年, 导致高峰期误判为平峰, 这里按两种格式依次尝试。</p>
+     */
+    public static Calendar parsePostTime(String timeStr) {
         Calendar calendar = Calendar.getInstance();
-        if (dateStr == null || dateStr.isBlank()) {
+        if (timeStr == null || timeStr.isBlank()) {
             calendar.setTime(new Date(0));
             return calendar;
         }
-        try {
-            calendar.setTime(dateFormat.parse(dateStr));
-        } catch (ParseException e) {
-            KBBSToperCore.logger().warning("无法解析时间：" + dateStr);
+        Date parsed = null;
+        for (String pattern : new String[]{TIME_PATTERN_SS, TIME_PATTERN}) {
+            try {
+                parsed = new SimpleDateFormat(pattern).parse(timeStr);
+                break;
+            } catch (ParseException ignored) {
+            }
+        }
+        if (parsed == null) {
+            KBBSToperCore.logger().warning("无法解析顶帖时间：" + timeStr);
             calendar.setTime(new Date(0));
+        } else {
+            calendar.setTime(parsed);
         }
         return calendar;
+    }
+
+    /** 两个日期字符串(yyyy-M-dd)相差的天数(b - a), 解析失败返回 0。 */
+    public static long daysBetween(String dayA, String dayB) {
+        if (dayA == null || dayA.isBlank() || dayB == null || dayB.isBlank()) {
+            return 0;
+        }
+        try {
+            SimpleDateFormat format = dayFormat();
+            Date a = format.parse(dayA);
+            Date b = format.parse(dayB);
+            return (b.getTime() - a.getTime()) / (24L * 60 * 60 * 1000);
+        } catch (ParseException e) {
+            return 0;
+        }
+    }
+
+    /** 日期字符串(yyyy-M-dd)平移 N 天。 */
+    private static String shiftDay(String day, int amount) {
+        try {
+            SimpleDateFormat format = dayFormat();
+            Calendar c = Calendar.getInstance();
+            c.setTime(format.parse(day));
+            c.add(Calendar.DAY_OF_MONTH, amount);
+            return format.format(c.getTime());
+        } catch (ParseException e) {
+            return day;
+        }
     }
 
     /** 当前时间是否处于配置的高峰期 [start-hour, end-hour)。 */
@@ -137,7 +195,7 @@ public class Reward {
 
     /** 给定顶帖时间字符串是否处于高峰期（用于记录「类型」判断）。 */
     public static boolean isPeakForTime(String timeStr) {
-        return isPeakHour(parseDateToCalendar(timeStr, BBS_FORMAT));
+        return isPeakHour(parsePostTime(timeStr));
     }
 
     /** 一次有效顶帖的发放结果，供调用方写入「我的顶帖记录」。 */
@@ -171,7 +229,7 @@ public class Reward {
         if (limit <= 0 || crawler == null) {
             return false;
         }
-        Date thispostDate = thispost.getTime();
+        long thispostMillis = thispost.getTimeInMillis();
         for (int x = index + 1; x < crawler.Time.size(); x++) {
             if (!crawler.ID.get(x).equalsIgnoreCase(crawler.ID.get(index))) {
                 continue;
@@ -180,45 +238,169 @@ public class Reward {
             if (timeStr == null || timeStr.isBlank()) {
                 continue;
             }
-            try {
-                Date lastDate = BBS_FORMAT.parse(timeStr);
-                if (lastDate == null) {
-                    continue;
-                }
-                long minutes = (thispostDate.getTime() - lastDate.getTime()) / (1000 * 60);
-                if (minutes < limit) {
-                    return true;
-                } else {
-                    break;
-                }
-            } catch (ParseException e) {
-                KBBSToperCore.logger().warning("无法解析顶贴时间：" + timeStr + "（index=" + x + "）");
+            Calendar last = parsePostTime(timeStr);
+            if (last.getTimeInMillis() <= 0) {
+                // 解析失败回退成 1970 的脏数据, 跳过
+                continue;
             }
+            long minutes = (thispostMillis - last.getTimeInMillis()) / (1000 * 60);
+            if (minutes < limit) {
+                return true;
+            }
+            break;
         }
         return false;
     }
 
+    // ================= 按顶帖日期结算连签/断签/配额 =================
+
+    /**
+     * 检测到一条新顶帖时, 以<b>顶帖日期</b>(而非玩家领取时刻)结算连签与每日配额。
+     *
+     * <ul>
+     *   <li>与 lastpostday 同日: 连签不变, 不重置配额。</li>
+     *   <li>恰好隔一天: streak + 1。</li>
+     *   <li>隔了多天: 按漏掉的天数扣减奖励等级, streak 重新从 1 开始。</li>
+     *   <li>顶帖日期进入新的一天: rewardbefore/rewardtime 按顶帖日期重置。</li>
+     * </ul>
+     *
+     * @return poster 状态是否发生变化(调用方据此落库)
+     */
+    public static boolean settlePost(Poster poster, Calendar postTime) {
+        if (poster == null || postTime == null) {
+            return false;
+        }
+        String postDay = dayFormat().format(postTime.getTime());
+        boolean changed = false;
+
+        String last = poster.getLastpostday() == null ? "" : poster.getLastpostday();
+        if (!postDay.equals(last)) {
+            if (last.isEmpty()) {
+                poster.setStreak(1);
+                poster.setLastpostday(postDay);
+                changed = true;
+            } else {
+                long gap = daysBetween(last, postDay);
+                if (gap == 1) {
+                    poster.setStreak(poster.getStreak() + 1);
+                    poster.setLastpostday(postDay);
+                    changed = true;
+                } else if (gap >= 2) {
+                    decayLevel(poster, (int) Math.min(Integer.MAX_VALUE, gap - 1));
+                    poster.setStreak(1);
+                    poster.setLastpostday(postDay);
+                    changed = true;
+                }
+                // gap <= 0: 顶帖时间早于已记录日期(脏数据), 忽略
+            }
+        }
+
+        // 每日计入配额同样以顶帖日期为准: 离线期间跨天顶帖也能正确重置
+        if (!postDay.equals(poster.getRewardbefore())) {
+            poster.setRewardbefore(postDay);
+            poster.setRewardtime(0);
+            changed = true;
+        }
+        return changed;
+    }
+
+    /**
+     * 跨天维护(定时刷新/玩家上下线/切维度时调用): 长期未顶帖的玩家按漏掉天数扣级并断签。
+     *
+     * <p>幂等设计: 结算后把 lastpostday 推进到"昨天", 同一天内重复调用不会重复扣级;
+     * 玩家此后再顶帖时 {@link #settlePost} 会把它当作"隔一天"重新开始计数。</p>
+     *
+     * @return poster 是否被修改(调用方据此落库)
+     */
+    public static boolean maintainDailyState(Poster poster, String today) {
+        if (poster == null) {
+            return false;
+        }
+        String last = poster.getLastpostday() == null ? "" : poster.getLastpostday();
+        if (last.isEmpty()) {
+            return false;
+        }
+        long gap = daysBetween(last, today);
+        if (gap < 2) {
+            return false;
+        }
+        decayLevel(poster, (int) Math.min(Integer.MAX_VALUE, gap - 1));
+        poster.setStreak(0);
+        poster.setLastpostday(shiftDay(today, -1));
+        return true;
+    }
+
+    /** 定时全量维护: 所有绑定玩家(含离线)的断签扣级, 在线玩家同步刷新 MGactivity 数值。 */
+    public static void maintainAllPosters() {
+        SQLer sql = SQLManager.getSQLer();
+        if (sql == null) {
+            return;
+        }
+        List<Poster> all = sql.getAllPosters();
+        if (all == null || all.isEmpty()) {
+            return;
+        }
+        String today = todayString();
+        for (Poster poster : all) {
+            if (poster.getBbsname() == null || poster.getBbsname().isBlank()) {
+                continue;
+            }
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(poster.getUuid());
+            } catch (IllegalArgumentException e) {
+                continue;
+            }
+            if (!maintainDailyState(poster, today)) {
+                continue;
+            }
+            sql.updatePoster(poster);
+            DebugCommandHandler.trace("维护: " + poster.getName() + " 断签结算, 奖励等级 → "
+                    + clampLevel(poster.getRewardlevel()));
+            PlatformPlayer online = KBBSToperCore.platform().getPlayer(uuid);
+            if (online != null) {
+                refreshRewardState(poster, false);
+            }
+        }
+    }
+
+    /** 按漏掉的整天数扣减奖励等级并同步生命上限。 */
+    private static void decayLevel(Poster poster, int missedDays) {
+        int decay = decayPerMissedDay();
+        if (missedDays <= 0 || decay <= 0) {
+            return;
+        }
+        int oldLevel = clampLevel(poster.getRewardlevel());
+        int newLevel = (int) Math.max(0, oldLevel - Math.min(Integer.MAX_VALUE, (long) missedDays * decay));
+        poster.setRewardlevel(newLevel);
+        poster.setMaxhp(hpForLevel(newLevel));
+    }
+
     // ================= 奖励发放 =================
 
-    /** 发放奖励(累计奖励等级模型)，返回本次结果（失败返回 null）。 */
+    /** 发放奖励(累计奖励等级模型)，返回本次结果（失败返回 null）。玩家离线时同样生效, 仅跳过聊天提示。 */
     public RewardResult award() {
         return applyCumulativeAward();
     }
 
     /** Apply the cumulative reward-level rules for one valid post. 失败返回 null。 */
     public RewardResult applyCumulativeAward() {
-        Calendar thispost = parseDateToCalendar(crawler.Time.get(index), BBS_FORMAT);
+        Calendar thispost = parsePostTime(crawler.Time.get(index));
         if (isIntervalTooShort(thispost, index)) {
-            player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
-                    .replaceAll("%TIME%", crawler.Time.get(index))
-                    .replaceAll("%INTERVAL%", String.valueOf(intervalMinutes())));
+            if (player != null) {
+                player.sendMessage(Message.PREFIX.getString() + Message.INTERVALTOOSHORT.getString()
+                        .replaceAll("%TIME%", crawler.Time.get(index))
+                        .replaceAll("%INTERVAL%", String.valueOf(intervalMinutes())));
+            }
             return null;
         }
 
-        String name = player.getName();
+        String name = player != null ? player.getName()
+                : (poster != null ? poster.getName() : "");
         List<String> cmds = new ArrayList<>(replacePlayerValue(
                 Option.REWARD_GROWTH_GRANT.getStringList(), name, Option.REWARD_VAL_GROWTH.getDouble()));
 
+        // 高峰/平峰按论坛顶帖时间判定
         boolean isPeak = isPeakHour(thispost);
         int oldLevel = poster == null ? 0 : clampLevel(poster.getRewardlevel());
         int gain = isPeak ? gainPeak() : gainNormal();
@@ -235,7 +417,7 @@ public class Reward {
         double growthGranted = Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()
                 ? 0 : Option.REWARD_VAL_GROWTH.getDouble();
 
-        // 星光点: 对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令)。
+        // 星光点: 对接 EssentialsX 经济(优先 EssentialsX 金钱, 失败回退 /money give 命令), 按名字入账, 离线可发。
         // 等级制下仅在高峰期顶帖发放。
         double starPoints = isPeak ? Option.REWARD_VAL_STAR.getDouble() : 0;
         if (starPoints > 0) {
@@ -307,9 +489,12 @@ public class Reward {
         });
     }
 
-    /** 奖励完成提示：本次等级变化 + 当前生效数值。 */
+    /** 奖励完成提示：本次等级变化 + 当前生效数值。离线发奖时没有聊天对象, 跳过。 */
     private void sendRewardSummary(String time, int levelGain, int level, int newMaxHp,
                                    double growthGranted, double starPoints) {
+        if (player == null) {
+            return;
+        }
         String mult = formatValue(multiplierForLevel(level));
         StringBuilder details = new StringBuilder();
         details.append("奖励等级 +").append(levelGain)
@@ -401,48 +586,7 @@ public class Reward {
         }
         double growthGranted = Option.REWARD_GROWTH_GRANT.getStringList().isEmpty()
                 ? 0 : Option.REWARD_VAL_GROWTH.getDouble();
-        sendRewardSummary(DAY_FORMAT.format(new Date()), level - current, level, maxHp, growthGranted, star);
-    }
-
-    // ================= 断签 =================
-
-    /**
-     * 跨天且上次领奖不是昨天 → 判定为断签, 按漏掉的天数扣减奖励等级。
-     * 必须在重置 rewardbefore 之前调用。
-     */
-    public static void applyDailyStreakBreakIfNeeded(Poster poster) {
-        String today = DAY_FORMAT.format(new Date());
-        String old = poster.getRewardbefore();
-        if (old == null || old.isEmpty() || old.equals(today) || old.equals(yesterday())) {
-            return;
-        }
-        long missedDays = missedDays(old, today);
-        if (missedDays <= 0) {
-            return;
-        }
-        int decay = decayPerMissedDay();
-        if (decay <= 0) {
-            return;
-        }
-        int oldLevel = clampLevel(poster.getRewardlevel());
-        int newLevel = Math.max(0, oldLevel - (int) Math.min(Integer.MAX_VALUE, missedDays * decay));
-        poster.setRewardlevel(newLevel);
-        poster.setMaxhp(hpForLevel(newLevel));
-        if (newLevel != oldLevel) {
-            refreshRewardState(poster, false);
-        }
-    }
-
-    private static long missedDays(String old, String today) {
-        try {
-            SimpleDateFormat format = new SimpleDateFormat("yyyy-M-d");
-            Date last = format.parse(old);
-            Date current = format.parse(today);
-            long days = (current.getTime() - last.getTime()) / (24L * 60 * 60 * 1000);
-            return Math.max(0, days - 1);
-        } catch (ParseException e) {
-            return 0;
-        }
+        sendRewardSummary(dayFormat().format(new Date()), level - current, level, maxHp, growthGranted, star);
     }
 
     /**
@@ -514,16 +658,5 @@ public class Reward {
                 }
             }
         });
-    }
-
-    private static String yesterday() {
-        Calendar c = Calendar.getInstance();
-        c.add(Calendar.DAY_OF_MONTH, -1);
-        return DAY_FORMAT.format(c.getTime());
-    }
-
-    /** 保留给旧配置校验用的日期格式判断(M-dd)。 */
-    static boolean isMonthDay(String s) {
-        return s != null && DATE_PATTERN.matcher(s).matches();
     }
 }

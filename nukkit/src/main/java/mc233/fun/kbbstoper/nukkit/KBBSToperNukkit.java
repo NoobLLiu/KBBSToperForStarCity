@@ -7,6 +7,7 @@ import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.player.PlayerJoinEvent;
+import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.plugin.PluginBase;
 import mc233.fun.kbbstoper.core.BindingSession;
 import mc233.fun.kbbstoper.core.CLI;
@@ -67,5 +68,11 @@ public class KBBSToperNukkit extends PluginBase implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Reminder.onJoin(new NukkitPlayer(event.getPlayer()));
+    }
+
+    /** 玩家退出: 结算离线期间的断签并快照下线时等级, 供下次上线对比升降。 */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Reminder.onQuit(new NukkitPlayer(event.getPlayer()));
     }
 }

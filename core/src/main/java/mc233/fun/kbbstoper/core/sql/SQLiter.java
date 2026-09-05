@@ -65,17 +65,20 @@ public class SQLiter extends SQLer {
 
     protected void createTablePosters() {
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, `rewardlevel` int(0) NOT NULL DEFAULT 0, PRIMARY KEY (`uuid`) );",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, `rewardlevel` int(0) NOT NULL DEFAULT 0, `streak` int(0) NOT NULL DEFAULT 0, `lastpostday` varchar(16) NOT NULL DEFAULT '', `lastlevel` int(0) NOT NULL DEFAULT -1, `lastseeday` varchar(16) NOT NULL DEFAULT '', PRIMARY KEY (`uuid`) );",
                 getTableName("posters"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
             KBBSToperCore.logger().severe("创建 posters 表失败", e);
         }
-        // 兼容旧表: 补上 maxhp 列(列已存在则忽略异常)
+        // 兼容旧表: 逐个补列(列已存在则忽略异常)
         migrateMaxHpColumn();
-        // 兼容旧表: 补上 rewardlevel 列(等级制奖励引擎 287fc94 引入)
         migrateRewardLevelColumn();
+        migratePosterColumn("streak", "int(0) NOT NULL DEFAULT 0");
+        migratePosterColumn("lastpostday", "varchar(16) NOT NULL DEFAULT ''");
+        migratePosterColumn("lastlevel", "int(0) NOT NULL DEFAULT -1");
+        migratePosterColumn("lastseeday", "varchar(16) NOT NULL DEFAULT ''");
     }
 
     private void migrateMaxHpColumn() {
@@ -96,9 +99,20 @@ public class SQLiter extends SQLer {
         }
     }
 
+    /** 兼容旧表: 给 posters 补新列(streak/lastpostday/lastlevel/lastseeday)。 */
+    private void migratePosterColumn(String column, String definition) {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE `" + getTableName("posters")
+                    + "` ADD COLUMN `" + column + "` " + definition);
+        } catch (SQLException ignored) {
+            // 列已存在(duplicate column)时静默跳过
+        }
+    }
+
     protected void createTableTopStates() {
+        // time 放宽到 varchar(32): 论坛时间带秒时为 17 字符, 旧的 16 会被截断导致去重失灵
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `time` varchar(16) NOT NULL);",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `bbsname` varchar(255) NOT NULL COLLATE NOCASE, `time` varchar(32) NOT NULL);",
                 getTableName("topstates"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);

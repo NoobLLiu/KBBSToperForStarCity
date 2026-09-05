@@ -20,6 +20,14 @@ public class Poster {
     private int maxhp = 20;
     /** 累计奖励等级(对方 287fc94 等级制奖励引擎使用)。0~MAX_REWARD_LEVEL。 */
     private int rewardlevel = 0;
+    /** 连续顶帖天数(截至 lastpostday, 断签后归零)。 */
+    private int streak = 0;
+    /** 最后一次顶帖的日期(yyyy-M-dd, 以论坛顶帖时间为准)。 */
+    private String lastpostday = "";
+    /** 上次在线(上线/下线)时刻的奖励等级, 用于上线对比升降; -1 = 从未记录。 */
+    private int lastlevel = -1;
+    /** 上次上线日期(yyyy-M-dd), 用于"每日第一次上线"展示判定。 */
+    private String lastseeday = "";
 
     public static void setSQLer(SQLer sql) {
         Poster.sql = sql;
@@ -95,6 +103,38 @@ public class Poster {
 
     public void setRewardlevel(int rewardlevel) {
         this.rewardlevel = rewardlevel;
+    }
+
+    public int getStreak() {
+        return streak;
+    }
+
+    public void setStreak(int streak) {
+        this.streak = streak;
+    }
+
+    public String getLastpostday() {
+        return lastpostday;
+    }
+
+    public void setLastpostday(String lastpostday) {
+        this.lastpostday = lastpostday;
+    }
+
+    public int getLastlevel() {
+        return lastlevel;
+    }
+
+    public void setLastlevel(int lastlevel) {
+        this.lastlevel = lastlevel;
+    }
+
+    public String getLastseeday() {
+        return lastseeday;
+    }
+
+    public void setLastseeday(String lastseeday) {
+        this.lastseeday = lastseeday;
     }
 
     public List<TopState> getTopStates() {

@@ -147,6 +147,23 @@ debug:
     simulate: '&a已模拟一次"检测到你顶帖", 请查看奖励发放与控制台(MGactivity/EssentialsX)响应.'
     refresh: '&a已刷新全服: &e%COUNT% &a名已绑定玩家(按等级同步), &e%UNBOUND% &a名未绑定玩家(重置为默认值).'
 
+#每日第一次上线时的顶帖状态概览(自动发送到聊天栏)
+joinstatus:
+    #%COUNT%=今日已计入次数 %LIMIT%=今日计入上限
+    posted: '&a今日已顶帖 &f%COUNT%/%LIMIT% &a次'
+    notposted: '&e今日还未顶帖'
+    #从未顶过帖时追加在 notposted 后
+    neverposted: '&7你还没有顶过帖, 今天就去顶一帖吧!'
+    #%STREAK%=已连续顶帖天数
+    streakcont: '&b已连续顶帖 &f%STREAK% &b天'
+    #%DAYS%=连顶中断天数 %LASTDAY%=最后顶帖日期
+    streakbroken: '&c连顶已中断 &f%DAYS% &c天 &7(最后顶帖: %LASTDAY%)'
+    #%OLD%=上次上线时等级 %NEW%=当前等级 %DIFF%=变化差值
+    levelup: '&e奖励等级: &f%OLD% &a→ %NEW% &7(上升 %DIFF% 级)'
+    leveldown: '&e奖励等级: &f%OLD% &c→ %NEW% &7(下降 %DIFF% 级)'
+    #%LEVEL%=当前等级
+    levelsame: '&e奖励等级: &f%LEVEL% &7(与上次上线持平)'
+
 #=============================================================
 # 双端新 GUI（v2 最终稿）共用文案
 # JAVA(箱子) 与 基岩(表单) 共用这些占位符文案, 颜色码仅 JAVA 侧渲染
@@ -175,6 +192,8 @@ gui2:
     records:
         title: '&d&l我的顶帖记录'
         empty: '&7暂无顶帖记录'
+        #%TIME%=顶帖时间(记录按钮的物品名, 时间缺失时显示 - )
+        name: '&e顶帖时间 &f%TIME%'
         #%KIND%=平峰期/高峰期 %SEQ%=当天第几次
         kind: '&e类型: &f%KIND% &7第%SEQ%次'
         peak: '&b高峰期'

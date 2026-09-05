@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -130,7 +131,9 @@ public class Crawler {
 
     /** 丢掉超过有效期的记录。 */
     public void kickExpiredData() {
-        SimpleDateFormat sdfm = new SimpleDateFormat("yyyy-M-d HH:mm");
+        // 论坛时间可能带秒, 两种格式都尝试解析
+        SimpleDateFormat withSec = new SimpleDateFormat("yyyy-M-d HH:mm:ss");
+        SimpleDateFormat noSec = new SimpleDateFormat("yyyy-M-d HH:mm");
         Date now = new Date();
         long validMillis = Option.REWARD_PERIOD.getInt() * 24L * 60 * 60 * 1000;
         Date expiry = new Date(now.getTime() - validMillis);
@@ -142,21 +145,47 @@ public class Crawler {
                 continue;
             }
 
+            Date date = null;
             try {
-                Date date = sdfm.parse(timeStr);
-                if (date.before(expiry)) {
-                    Time.remove(i);
-                    ID.remove(i);
+                date = withSec.parse(timeStr);
+            } catch (ParseException ignored) {
+            }
+            if (date == null) {
+                try {
+                    date = noSec.parse(timeStr);
+                } catch (ParseException e) {
+                    KBBSToperCore.logger().warning("无法解析时间: " + timeStr);
+                    continue;
                 }
-            } catch (ParseException e) {
-                KBBSToperCore.logger().warning("无法解析时间: " + timeStr);
+            }
+            if (date.before(expiry)) {
+                Time.remove(i);
+                ID.remove(i);
             }
         }
     }
 
-    /** 遍历抓到的记录，给在线且已绑定的玩家自动发奖。 */
+    /** 单条顶帖记录的处理结果, 供自动检测与手动领取指令分别决定后续提示。 */
+    public enum ProcessResult {
+        /** 正常发放了奖励。 */
+        REWARDED,
+        /** 已达每日上限, 仅记录了顶帖。 */
+        RECORDED_CAPPED,
+        /** 顶帖间隔过短, 本次无效。 */
+        SKIPPED_INTERVAL,
+        /** 其他原因跳过(无权限/数据异常等)。 */
+        SKIPPED
+    }
+
+    /**
+     * 遍历抓到的记录，给已绑定的玩家自动发奖。
+     *
+     * <p>倒序(从最早到最新)处理: 论坛页面是最新在前, 同一玩家积压多条记录时
+     * 按顶帖时间先后依次结算, 保证连签天数与每日配额按真实顶帖顺序累计。
+     * 玩家离线时同样发奖(MGactivity 命令与经济都按名字入账), 仅跳过聊天提示。</p>
+     */
     public void activeReward() {
-        for (int i = 0; i < ID.size(); i++) {
+        for (int i = ID.size() - 1; i >= 0; i--) {
             String bbsname = ID.get(i);
             String time = Time.get(i);
 
@@ -174,51 +203,52 @@ public class Crawler {
         }
     }
 
-    private void processRewardForPlayer(String uuid, Poster poster, String bbsname, String time, int index) {
+    /**
+     * 处理一条未入库的顶帖记录: 按顶帖时间结算连签/断签/每日配额并发放奖励。
+     * 玩家离线时照常结算与入账, 只是收不到聊天提示。
+     */
+    public ProcessResult processRewardForPlayer(String uuid, Poster poster, String bbsname, String time, int index) {
         PlatformOfflinePlayer offline;
         try {
             offline = KBBSToperCore.platform().getOfflinePlayer(UUID.fromString(uuid));
         } catch (IllegalArgumentException e) {
             KBBSToperCore.logger().warning("数据库里存在非法 UUID：" + uuid);
-            return;
+            return ProcessResult.SKIPPED;
         }
 
         PlatformPlayer olplayer = offline.getOnlinePlayer();
-        if (olplayer == null) {
-            DebugCommandHandler.trace("检测: bbsname=" + bbsname + " time=" + time
-                    + " 玩家 " + uuid + " 当前不在线 → 跳过");
-            return;
-        }
-        if (!olplayer.hasPermission("bbstoper.reward")) {
+        // 在线才校验权限; 离线玩家权限不可查, 直接放行(离线照样发奖)
+        if (olplayer != null && !olplayer.hasPermission("bbstoper.reward")) {
             DebugCommandHandler.trace("检测: 玩家 " + uuid + " 缺少 bbstoper.reward 权限 → 跳过");
-            return;
+            return ProcessResult.SKIPPED;
         }
         DebugCommandHandler.trace("检测: bbsname=" + bbsname + " time=" + time
-                + " 玩家 " + uuid + " 在线且有权限 → 进入发奖流程");
+                + " 玩家 " + uuid + (olplayer == null ? " 不在线 → 离线发奖" : " 在线且有权限 → 进入发奖流程"));
 
-        String datenow = new SimpleDateFormat("yyyy-M-dd").format(new Date());
-        if (!datenow.equals(poster.getRewardbefore())) {
-            Reward.applyDailyStreakBreakIfNeeded(poster);
-            poster.setRewardbefore(datenow);
-            poster.setRewardtime(0);
+        // 按论坛顶帖时间结算连签/断签与每日配额(与玩家领取/上线时刻无关)
+        Calendar postTime = Reward.parsePostTime(time);
+        boolean settled = Reward.settlePost(poster, postTime);
+        if (settled) {
             sql.updatePoster(poster);
-            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 跨天, rewardtime 重置为 0");
+            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 顶帖日期结算, 连续天数=" + poster.getStreak()
+                    + ", 奖励等级=" + poster.getRewardlevel());
         }
 
         if (poster.getRewardtime() >= Option.REWARD_TIMES.getInt(3)) {
             // 超出每日上限: 仅记录顶贴, 不再发奖
-            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
+            DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已计入 "
                     + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " 达上限 → 仅记录顶贴");
             int kind = Reward.isPeakForTime(time) ? 1 : 0;
             sql.addTopState(bbsname, time, kind, poster.getRewardtime() + 1, null);
-            return;
+            sql.updatePoster(poster);
+            return ProcessResult.RECORDED_CAPPED;
         }
 
-        DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已领 "
+        DebugCommandHandler.trace("检测: 玩家 " + uuid + " 今日已计入 "
                 + poster.getRewardtime() + "/" + Option.REWARD_TIMES.getInt(3) + " → 调用 applyCumulativeAward() 计算奖励");
         Reward.RewardResult result = new Reward(olplayer, this, index, poster).applyCumulativeAward();
         if (result == null) {
-            return;
+            return ProcessResult.SKIPPED_INTERVAL;
         }
         int kind = result.peak ? 1 : 0;
         sql.addTopState(bbsname, time, kind, poster.getRewardtime() + 1, result.rewardText);
@@ -228,18 +258,20 @@ public class Crawler {
         // 顶帖检测后主动向 MGactivity 刷新奖励数值状态
         Reward.refreshRewardState(poster, false);
 
-        broadcastReward(olplayer);
+        broadcastReward(olplayer, poster.getName());
+        return ProcessResult.REWARDED;
     }
 
-    private void broadcastReward(PlatformPlayer rewarded) {
+    /** 全服广播某人顶帖领奖。rewarded 为 null 表示玩家当前离线(此时不做隐身可见性过滤)。 */
+    private void broadcastReward(PlatformPlayer rewarded, String name) {
         for (PlatformPlayer p : KBBSToperCore.platform().getOnlinePlayers()) {
-            if (!p.canSee(rewarded)) {
+            if (rewarded != null && !p.canSee(rewarded)) {
                 continue;
             }
             if (!p.hasPermission("bbstoper.reward")) {
                 continue;
             }
-            p.sendMessage(Message.BROADCAST.getString().replace("%PLAYER%", rewarded.getName()));
+            p.sendMessage(Message.BROADCAST.getString().replace("%PLAYER%", name));
         }
     }
 
@@ -249,8 +281,7 @@ public class Crawler {
 
     /**
      * 调试用: 以空上下文模拟一次"检测到该玩家顶帖", 走完整发奖逻辑(不抓取网络)。
-     * 模拟使用空上下文, 因此必然走"长期无人顶贴"分支, 附加奖励(HP+成长+星光点)会一并触发;
-     * 每日次数配额与 2h 间隔仍按真实规则判定, 方便反复测试整条奖励链路。
+     * 连签/断签/每日配额均按真实规则结算, 方便反复测试整条奖励链路。
      */
     public void simulateTopPost(PlatformPlayer player) {
         String uuid = player.getUniqueId().toString();
@@ -259,7 +290,7 @@ public class Crawler {
             player.sendMessage(Message.PREFIX.getString() + Message.NOTBOUND.getString());
             return;
         }
-        String time = new SimpleDateFormat("yyyy-M-d HH:mm").format(new Date());
+        String time = new SimpleDateFormat("yyyy-M-d HH:mm:ss").format(new Date());
         ID.add(poster.getBbsname());
         Time.add(time);
         processRewardForPlayer(uuid, poster, poster.getBbsname(), time, 0);
