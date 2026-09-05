@@ -22,6 +22,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -180,6 +181,12 @@ public class KBBSToperBukkit extends JavaPlugin implements TabExecutor, Listener
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Reminder.onJoin(new BukkitPlayer(event.getPlayer()));
+    }
+
+    /** 玩家退出: 结算离线期间的断签并快照下线时等级, 供下次上线对比升降。 */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Reminder.onQuit(new BukkitPlayer(event.getPlayer()));
     }
 
     /**

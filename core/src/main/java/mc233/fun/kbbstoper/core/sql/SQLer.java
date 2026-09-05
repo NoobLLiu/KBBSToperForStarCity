@@ -30,7 +30,7 @@ public abstract class SQLer {
     public void addPoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`, `maxhp`, `rewardlevel`) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+                "INSERT INTO `%s` (`uuid`, `name`, `bbsname`, `binddate`, `rewardbefore`, `rewardtimes`, `maxhp`, `rewardlevel`, `streak`, `lastpostday`, `lastlevel`, `lastseeday`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getUuid());
@@ -41,6 +41,10 @@ public abstract class SQLer {
             pstmt.setInt(6, poster.getRewardtime());
             pstmt.setInt(7, poster.getMaxhp());
             pstmt.setInt(8, poster.getRewardlevel());
+            pstmt.setInt(9, poster.getStreak());
+            pstmt.setString(10, poster.getLastpostday());
+            pstmt.setInt(11, poster.getLastlevel());
+            pstmt.setString(12, poster.getLastseeday());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("写入绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -52,7 +56,7 @@ public abstract class SQLer {
     public void updatePoster(Poster poster) {
         writelock.lock();
         String sql = String.format(
-                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=?, `maxhp`=?, `rewardlevel`=? WHERE `uuid`=?;",
+                "UPDATE `%s` SET `name`=?, `bbsname`=?, `binddate`=?, `rewardbefore`=?, `rewardtimes`=?, `maxhp`=?, `rewardlevel`=?, `streak`=?, `lastpostday`=?, `lastlevel`=?, `lastseeday`=? WHERE `uuid`=?;",
                 getTableName("posters"));
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
             pstmt.setString(1, poster.getName());
@@ -62,7 +66,11 @@ public abstract class SQLer {
             pstmt.setInt(5, poster.getRewardtime());
             pstmt.setInt(6, poster.getMaxhp());
             pstmt.setInt(7, poster.getRewardlevel());
-            pstmt.setString(8, poster.getUuid());
+            pstmt.setInt(8, poster.getStreak());
+            pstmt.setString(9, poster.getLastpostday());
+            pstmt.setInt(10, poster.getLastlevel());
+            pstmt.setString(11, poster.getLastseeday());
+            pstmt.setString(12, poster.getUuid());
             pstmt.executeUpdate();
         } catch (Exception e) {
             KBBSToperCore.logger().severe("更新绑定记录失败(uuid=" + poster.getUuid() + ")", e);
@@ -157,24 +165,67 @@ public abstract class SQLer {
                 }
 
                 if (rs.next()) {
-                    poster = new Poster();
-                    poster.setUuid(rs.getString("uuid"));
-                    poster.setName(rs.getString("name"));
-                    poster.setBbsname(rs.getString("bbsname"));
-                    poster.setBinddate(rs.getLong("binddate"));
-                    poster.setRewardbefore(rs.getString("rewardbefore"));
-                    poster.setRewardtime(rs.getInt("rewardtimes"));
-                    int maxhp = rs.getInt("maxhp");
-                    poster.setMaxhp(maxhp);
-                    int level = rs.getInt("rewardlevel");
-                    poster.setRewardlevel(Reward.clampLevel(level > 0 ? level
-                            : Math.max(0, maxhp - Reward.hpBase())));
+                    poster = posterFromResultSet(rs);
                 }
             }
         } catch (Exception e) {
             KBBSToperCore.logger().severe("查询绑定记录失败(uuid=" + uuid + ")", e);
         } finally {
             readlock.unlock();
+        }
+        return poster;
+    }
+
+    /** 全部绑定玩家, 供定时任务离线维护连签/等级衰减。 */
+    public List<Poster> getAllPosters() {
+        readlock.lock();
+        String sql = String.format("SELECT * FROM `%s`;", getTableName("posters"));
+        List<Poster> list = new ArrayList<>();
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                list.add(posterFromResultSet(rs));
+            }
+            return list;
+        } catch (Exception e) {
+            KBBSToperCore.logger().severe("查询全部绑定记录失败", e);
+        } finally {
+            readlock.unlock();
+        }
+        return list;
+    }
+
+    /** 结果集 → Poster, 新列缺失(迁移前旧库)时容错为默认值。 */
+    private static Poster posterFromResultSet(ResultSet rs) throws Exception {
+        Poster poster = new Poster();
+        poster.setUuid(rs.getString("uuid"));
+        poster.setName(rs.getString("name"));
+        poster.setBbsname(rs.getString("bbsname"));
+        poster.setBinddate(rs.getLong("binddate"));
+        poster.setRewardbefore(rs.getString("rewardbefore"));
+        poster.setRewardtime(rs.getInt("rewardtimes"));
+        int maxhp = rs.getInt("maxhp");
+        poster.setMaxhp(maxhp);
+        int level = rs.getInt("rewardlevel");
+        poster.setRewardlevel(Reward.clampLevel(level > 0 ? level
+                : Math.max(0, maxhp - Reward.hpBase())));
+        try {
+            poster.setStreak(Math.max(0, rs.getInt("streak")));
+        } catch (Exception ignored) {
+        }
+        try {
+            String day = rs.getString("lastpostday");
+            poster.setLastpostday(day == null ? "" : day);
+        } catch (Exception ignored) {
+        }
+        try {
+            poster.setLastlevel(rs.getInt("lastlevel"));
+        } catch (Exception ignored) {
+        }
+        try {
+            String day = rs.getString("lastseeday");
+            poster.setLastseeday(day == null ? "" : day);
+        } catch (Exception ignored) {
         }
         return poster;
     }
@@ -337,18 +388,7 @@ public abstract class SQLer {
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                Poster poster = new Poster();
-                poster.setUuid(rs.getString("uuid"));
-                poster.setName(rs.getString("name"));
-                poster.setBbsname(rs.getString("bbsname"));
-                poster.setBinddate(rs.getLong("binddate"));
-                poster.setRewardbefore(rs.getString("rewardbefore"));
-                poster.setRewardtime(rs.getInt("rewardtimes"));
-                int maxhp = rs.getInt("maxhp");
-                poster.setMaxhp(maxhp);
-                int level = rs.getInt("rewardlevel");
-                poster.setRewardlevel(Reward.clampLevel(level > 0 ? level
-                        : Math.max(0, maxhp - Reward.hpBase())));
+                Poster poster = posterFromResultSet(rs);
                 poster.setCount(0);
                 posterlist.add(poster);
             }

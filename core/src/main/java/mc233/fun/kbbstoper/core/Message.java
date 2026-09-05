@@ -79,6 +79,15 @@ public enum Message {
     DEBUG_STATUS("debug.status"),
     DEBUG_SIMULATE("debug.simulate"),
     DEBUG_REFRESH("debug.refresh"),
+    // ---- 每日首次上线状态概览 ----
+    JOINSTATUS_POSTED("joinstatus.posted"),
+    JOINSTATUS_NOT_POSTED("joinstatus.notposted"),
+    JOINSTATUS_NEVER_POSTED("joinstatus.neverposted"),
+    JOINSTATUS_STREAK_CONT("joinstatus.streakcont"),
+    JOINSTATUS_STREAK_BROKEN("joinstatus.streakbroken"),
+    JOINSTATUS_LEVEL_UP("joinstatus.levelup"),
+    JOINSTATUS_LEVEL_DOWN("joinstatus.leveldown"),
+    JOINSTATUS_LEVEL_SAME("joinstatus.levelsame"),
     // ---- 表单界面（Nukkit 端使用，Bukkit 端忽略） ----
     FORM_TITLE("form.title"),
     FORM_CONTENT("form.content"),
@@ -111,6 +120,7 @@ public enum Message {
     GUI2_STATUS_TITLE("gui2.status.title"),
     GUI2_RECORDS_TITLE("gui2.records.title"),
     GUI2_RECORDS_EMPTY("gui2.records.empty"),
+    GUI2_RECORD_NAME("gui2.records.name"),
     GUI2_RECORD_KIND("gui2.records.kind"),
     GUI2_RECORD_PEAK("gui2.records.peak"),
     GUI2_RECORD_OFFPEAK("gui2.records.offpeak"),

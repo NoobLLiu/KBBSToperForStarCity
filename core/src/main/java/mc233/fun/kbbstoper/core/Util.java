@@ -44,6 +44,9 @@ public class Util {
                         return;
                     }
                     crawler.activeReward();
+                    // 全量维护: 长期未顶帖的玩家(含离线)断签扣级,
+                    // 保证连签/等级状态始终与论坛顶帖时间对齐
+                    Reward.maintainAllPosters();
                 } finally {
                     exitTask();
                 }

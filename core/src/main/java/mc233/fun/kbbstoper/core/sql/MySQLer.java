@@ -75,17 +75,20 @@ public class MySQLer extends SQLer {
 
     protected void createTablePosters() {
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, `rewardlevel` int(0) NOT NULL DEFAULT 0, PRIMARY KEY (`uuid`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `uuid` char(36) NOT NULL, `name` varchar(255) NOT NULL, `bbsname` varchar(255) NOT NULL, `binddate` bigint(0) NOT NULL, `rewardbefore` char(10) NOT NULL, `rewardtimes` int(0) NOT NULL, `maxhp` int(0) NOT NULL DEFAULT 20, `rewardlevel` int(0) NOT NULL DEFAULT 0, `streak` int(0) NOT NULL DEFAULT 0, `lastpostday` varchar(16) NOT NULL DEFAULT '', `lastlevel` int(0) NOT NULL DEFAULT -1, `lastseeday` varchar(16) NOT NULL DEFAULT '', PRIMARY KEY (`uuid`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
                 getTableName("posters"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
             KBBSToperCore.logger().severe("创建 posters 表失败", e);
         }
-        // 兼容旧表: 补上 maxhp 列(列已存在则忽略异常)
+        // 兼容旧表: 逐个补列(列已存在则忽略异常)
         migrateMaxHpColumn();
-        // 兼容旧表: 补上 rewardlevel 列(等级制奖励引擎 287fc94 引入)
         migrateRewardLevelColumn();
+        migratePosterColumn("streak", "int(0) NOT NULL DEFAULT 0");
+        migratePosterColumn("lastpostday", "varchar(16) NOT NULL DEFAULT ''");
+        migratePosterColumn("lastlevel", "int(0) NOT NULL DEFAULT -1");
+        migratePosterColumn("lastseeday", "varchar(16) NOT NULL DEFAULT ''");
     }
 
     private void migrateMaxHpColumn() {
@@ -106,14 +109,32 @@ public class MySQLer extends SQLer {
         }
     }
 
+    /** 兼容旧表: 给 posters 补新列(streak/lastpostday/lastlevel/lastseeday)。 */
+    private void migratePosterColumn(String column, String definition) {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE `" + getTableName("posters")
+                    + "` ADD COLUMN `" + column + "` " + definition);
+        } catch (SQLException ignored) {
+            // 列已存在(错误码 1060 duplicate column)时静默跳过
+        }
+    }
+
     protected void createTableTopStates() {
+        // time 放宽到 varchar(32): 论坛时间带秒时为 17 字符, 旧的 16 会被截断导致去重失灵
         String sql = String.format(
-                "CREATE TABLE IF NOT EXISTS `%s` ( `id` int(0) NOT NULL AUTO_INCREMENT, `bbsname` varchar(255) NOT NULL, `time` varchar(16) NOT NULL, PRIMARY KEY (`id`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
+                "CREATE TABLE IF NOT EXISTS `%s` ( `id` int(0) NOT NULL AUTO_INCREMENT, `bbsname` varchar(255) NOT NULL, `time` varchar(32) NOT NULL, PRIMARY KEY (`id`) ) CHARACTER SET utf8 COLLATE utf8_unicode_ci;",
                 getTableName("topstates"));
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
             KBBSToperCore.logger().warning("创建顶帖记录表失败", e);
+        }
+        // 旧表 time 列扩宽(varchar(16) → varchar(32)), 失败时忽略
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE `" + getTableName("topstates")
+                    + "` MODIFY COLUMN `time` varchar(32) NOT NULL");
+        } catch (SQLException ignored) {
+            // 列已是目标类型或权限不足时静默跳过
         }
         // 迁移到带 kind/seq/reward 列的新结构（旧库已在用, 不能丢数据）
         migrateTopStatesColumns();

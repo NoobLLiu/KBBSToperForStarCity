@@ -2,7 +2,6 @@ package mc233.fun.kbbstoper.core.commands;
 
 import mc233.fun.kbbstoper.core.CommandHandler;
 import mc233.fun.kbbstoper.core.Crawler;
-import mc233.fun.kbbstoper.core.KBBSToperCore;
 import mc233.fun.kbbstoper.core.Message;
 import mc233.fun.kbbstoper.core.Option;
 import mc233.fun.kbbstoper.core.Poster;
@@ -16,9 +15,7 @@ import mc233.fun.kbbstoper.core.sql.SQLer;
 import java.util.HashSet;
 import java.util.Set;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -84,45 +81,35 @@ public class RewardCommandHandler implements CommandHandler {
             alreadyRewarded.add(s.time);
         }
 
-        for (int i = 0; i < crawler.ID.size(); i++) {
+        // 倒序(从最早到最新)处理, 与自动检测一致: 连签/配额按真实顶帖时间顺序结算
+        for (int i = crawler.ID.size() - 1; i >= 0; i--) {
             if (!crawler.ID.get(i).equalsIgnoreCase(poster.getBbsname())) {
                 continue;
             }
+            String time = crawler.Time.get(i);
             // 同一分钟内的重复顶帖只算一次
-            for (String t : temp) {
-                if (t.equals(crawler.Time.get(i))) {
-                    iswaitamin = true;
-                    break;
-                }
-            }
-            if (iswaitamin) {
+            if (temp.contains(time)) {
+                iswaitamin = true;
                 break;
             }
-            if (!alreadyRewarded.contains(crawler.Time.get(i))) {
+            if (!alreadyRewarded.contains(time)) {
                 havepost = true;
-                String today = new SimpleDateFormat("yyyy-M-dd").format(new Date());
-                if (!today.equals(poster.getRewardbefore())) {
-                    Reward.applyDailyStreakBreakIfNeeded(poster);
-                    poster.setRewardbefore(today);
-                    poster.setRewardtime(0);
-                }
-                if (poster.getRewardtime() < Option.REWARD_TIMES.getInt()) {
-                    Reward.RewardResult result = new Reward(player, crawler, i, poster).award();
-                    if (result != null) {
-                        int kind = result.peak ? 1 : 0;
-                        sql.addTopState(poster.getBbsname(), crawler.Time.get(i), kind,
-                                poster.getRewardtime() + 1, result.rewardText);
-                        poster.setRewardtime(poster.getRewardtime() + 1);
+                Crawler.ProcessResult r = crawler.processRewardForPlayer(
+                        uid.toString(), poster, poster.getBbsname(), time, i);
+                switch (r) {
+                    case REWARDED:
                         issucceed = true;
-                    }
-                } else {
-                    isovertime = true;
-                    // 达每日上限: 记录一条"无奖励"的顶帖, 方便玩家在记录页看到上限说明
-                    int kind = Reward.isPeakForTime(crawler.Time.get(i)) ? 1 : 0;
-                    sql.addTopState(poster.getBbsname(), crawler.Time.get(i), kind,
-                            poster.getRewardtime() + 1, null);
+                        break;
+                    case RECORDED_CAPPED:
+                        isovertime = true;
+                        break;
+                    case SKIPPED_INTERVAL:
+                        iswaitamin = true;
+                        break;
+                    default:
+                        break;
                 }
-                temp.add(crawler.Time.get(i));
+                temp.add(time);
             }
         }
         sql.updatePoster(poster);
@@ -132,11 +119,7 @@ public class RewardCommandHandler implements CommandHandler {
 
         if (issucceed) {
             sender.sendMessage(Message.PREFIX.getString() + Message.REWARDGIVED.getString());
-            KBBSToperCore.platform().getOnlinePlayers().stream()
-                    .filter(p -> p.hasPermission("bbstoper.reward"))
-                    .filter(p -> p.canSee(player))
-                    .forEach(p -> p.sendMessage(
-                            Message.BROADCAST.getString().replace("%PLAYER%", player.getName())));
+            // 全服广播已在 processRewardForPlayer() 内部完成, 此处不再重复广播
         }
         if (isovertime) {
             sender.sendMessage(Message.PREFIX.getString() + Message.OVERTIME.getString()
